@@ -111,7 +111,7 @@ export default defineConfig({
       codePaths: ['src/runner/assertion-runner.ts'],
       rubrics: {
         'REQ-ANSWER-01': noul(
-          'When the probability, the confidence or the score of an answer is not a finite number, does the assertion on that answer fail?'
+          'Does the assertion on an answer fail when its probability, its confidence or its score is below 0, above its maximum, or NaN?'
         ),
         'REQ-ANSWER-03': noul(
           'When a rubric has no assertion, is its evaluation recorded as passed?'
@@ -120,6 +120,21 @@ export default defineConfig({
       assertions: {
         'REQ-ANSWER-01': MET,
         'REQ-ANSWER-03': MET,
+      },
+    },
+
+    apiAnswers: {
+      description: 'A value of an answer is used as the API returned it',
+      specPath: 'docs/specs/fail-closed.md',
+      specFilter: { requirementPrefix: 'REQ-API-' },
+      codePaths: ['src/evaluator/jev-evaluator.ts'],
+      rubrics: {
+        'REQ-API-01': noul(
+          'When the live evaluator maps the answers of the API, does it use the probability, the confidence and the score only when their type is number, without converting a value such as null or a string into a number?'
+        ),
+      },
+      assertions: {
+        'REQ-API-01': MET,
       },
     },
 

@@ -36,9 +36,13 @@ A run reads the code of every target it checks before it sends anything. When a 
 
 ## Answers
 
-### REQ-ANSWER-01: A value that is not a finite number fails
+### REQ-ANSWER-01: A value outside its range fails
 
-When the probability, the confidence or the score of an answer is not a finite number, the assertion on that answer fails.
+When the probability or the confidence of an answer is not a number from 0 to 1, or the score of an answer is not a number from 0 to the highest level of its rubric, the assertion on that answer fails. The levels of a rubric are numbered from 0, and NaN lies outside every range.
+
+### REQ-API-01: A value the API did not return as a number is not converted
+
+The live evaluator takes the probability, the confidence and the score of an answer only when the API returned them as numbers. Any other value, such as `null` or the string `"0.99"`, is replaced by NaN, which fails its assertion, and is never converted into a number.
 
 ### REQ-ANSWER-03: A rubric without an assertion is informational
 
