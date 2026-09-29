@@ -147,6 +147,22 @@ describe('malformed answers from the API', () => {
     expect(await passes(scoreRubric, scoreAnswer(2, '0.99'), { minConfidence: 0.9 })).toBe(false);
   });
 
+  it('REQ-API-02: fails an assertion when the API returns a choice that is not a string', async () => {
+    const numbered = choice('Tier', { '1': 'first', '2': 'second' });
+    const answer = (label: unknown) => ({
+      type: 'choice',
+      choice: label,
+      confidence: 0.95,
+      probabilities: { '1': 0.95, '2': 0.05 },
+    });
+    expect(await passes(numbered, answer('1'), { blockedChoices: ['2'] })).toBe(true);
+    expect(await passes(numbered, answer(1), { blockedChoices: ['2'] })).toBe(false);
+    expect(await passes(choiceRubric, answer(null), { blockedChoices: ['insecure'] })).toBe(false);
+    expect(await passes(choiceRubric, answer(['secure']), { allowedChoices: ['secure'] })).toBe(
+      false
+    );
+  });
+
   it('REQ-ANSWER-01: fails an assertion when a probability or a confidence lies outside 0 to 1', async () => {
     expect(await passes(noulRubric, { type: 'noul', noul: 2 }, { minProbability: 0.9 })).toBe(
       false

@@ -243,6 +243,8 @@ assertions: {
   - `blockedChoices?: readonly T[]`: 금지되는 선택지 키 배열 (선택 시 검사 실패).
   - `minConfidence?: number`: 선택된 선택지에 요구되는 최소 신뢰도 점수 (`[0, 1]`).
 
+  루브릭의 키가 아닌 선택지를 반환한 답변은 이 단언들 중 어느 것에서도 실패합니다.
+
 #### score(description, levels): ScoreRubric
 
 **score** 루브릭은 2개에서 10개 레벨의 순서 척도에 대해 점수를 평가합니다. 연속 점수, 레벨별 확률 및 신뢰도를 반환합니다.

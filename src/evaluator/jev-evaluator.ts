@@ -271,7 +271,8 @@ export class LiveJevEvaluator implements JevEvaluator {
         const distribution = (answer.probabilities ?? {}) as Record<string, number>;
         mapped[name] = {
           type: 'choice',
-          choice: String(answer.choice),
+          // Not converted: assertChoice fails a label that is not an option of the rubric.
+          choice: answer.choice as string,
           confidence: numberOrNaN(answer.confidence),
           distribution,
         };

@@ -67,6 +67,24 @@ describe('assertRubric', () => {
     ).toBe(false);
   });
 
+  it('REQ-ANSWER-04: fails a choice assertion when the choice is not an option of the rubric', () => {
+    const unknown: ChoiceResult = { ...choiceResult('secure', 0.9), choice: 'maybe' };
+    const reasons = [
+      { blockedChoices: ['insecure'] },
+      { minConfidence: 0.5 },
+      { allowedChoices: ['secure', 'maybe'] },
+    ].map((assertion) => assertRubric('r', choiceRubric, unknown, assertion).reason);
+    expect(reasons).toEqual(
+      Array(3).fill(
+        'Evaluator returned an invalid choice ("maybe"): expected one of secure, insecure'
+      )
+    );
+    expect(
+      assertRubric('r', choiceRubric, { ...unknown, choice: 'toString' }, { minConfidence: 0.5 })
+        .passed
+    ).toBe(false);
+  });
+
   it('fails a choice assertion when the confidence is below minConfidence or non-finite', () => {
     const assertion = { allowedChoices: ['secure'], minConfidence: 0.75 } as const;
     expect(assertRubric('r', choiceRubric, choiceResult('secure', 0.8), assertion).passed).toBe(

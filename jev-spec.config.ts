@@ -17,6 +17,9 @@ import { defineConfig, noul } from 'jev-spec';
 // - Name what the code of the target names. "An error that lists targets whose code cannot be
 //   checked" scored 0.59 on intact code, because that error is defined in a file the target does
 //   not send; "an UncheckedTargetsError ... the targets of that error" scored 0.94 (REQ-EXIT-05).
+// - A probe breaks the requirement plainly. A probe that only narrowed the choice check to
+//   assertions with allowedChoices, under a comment that still said the check runs first, scored
+//   0.88 on the broken copy; removing the check with its comment scored 0.42 (REQ-ANSWER-04).
 // - Asking whether something forbidden happens works well for some requirements and not at all
 //   for others, so try it on a probe instead of assuming it.
 //
@@ -127,10 +130,14 @@ export default defineConfig({
         'REQ-ANSWER-03': noul(
           'When a rubric has no assertion, is its evaluation recorded as passed?'
         ),
+        'REQ-ANSWER-04': noul(
+          'Does a choice assertion fail when the selected choice is not one of the options of the rubric, even when the assertion only lists blocked choices?'
+        ),
       },
       assertions: {
         'REQ-ANSWER-01': MET,
         'REQ-ANSWER-03': MET,
+        'REQ-ANSWER-04': MET,
       },
     },
 
@@ -143,9 +150,13 @@ export default defineConfig({
         'REQ-API-01': noul(
           'When the live evaluator maps the answers of the API, does it use the probability, the confidence and the score only when their type is number, without converting a value such as null or a string into a number?'
         ),
+        'REQ-API-02': noul(
+          'When the live evaluator maps a choice answer of the API, does it use the choice without converting it into a string?'
+        ),
       },
       assertions: {
         'REQ-API-01': MET,
+        'REQ-API-02': MET,
       },
     },
 

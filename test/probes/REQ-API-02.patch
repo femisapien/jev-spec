@@ -1,0 +1,12 @@
+diff --git a/src/evaluator/jev-evaluator.ts b/src/evaluator/jev-evaluator.ts
+--- a/src/evaluator/jev-evaluator.ts
++++ b/src/evaluator/jev-evaluator.ts
+@@ -272,7 +272,7 @@ export class LiveJevEvaluator implements JevEvaluator {
+         mapped[name] = {
+           type: 'choice',
+           // Not converted: assertChoice fails a label that is not an option of the rubric.
+-          choice: answer.choice as string,
++          choice: String(answer.choice),
+           confidence: numberOrNaN(answer.confidence),
+           distribution,
+         };
