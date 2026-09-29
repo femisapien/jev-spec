@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `jev-spec --help` still described `--staged` as "Check staged git changes only" and `--diff` as "Check a git diff range", which is what they did before 0.3.0. Both lines now say what a diff run does: it checks only the targets that the change touches, each in full. The code comments in the READMEs say the same, and the Japanese, Chinese and Korean READMEs head the section "diff run" instead of "check only the changes", which contradicted the sentence below it.
+- A diff run (`--staged`, `--diff`) could skip a target that had changed, and pass without asking the model anything. It read the changed files from the display headers of `git diff`, which missed two kinds of change. With git's default `core.quotePath`, a path with non-ASCII letters (such as `src/é.ts`) is quoted there and was dropped. A file renamed from inside a target to outside it counted only under its new path. jev-spec now reads the changed paths from `git diff --name-status -z`, where no path is quoted. A renamed or copied file counts under both its old and its new path, and output it cannot read stops the run with exit code 2 ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)).
 
 ## [0.3.0] - 2026-09-21
 

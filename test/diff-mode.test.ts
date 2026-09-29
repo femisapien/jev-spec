@@ -192,6 +192,74 @@ describe('diff mode target selection', () => {
     expect(result.passed).toBe(true);
   });
 
+  describe('with a path that git quotes or a renamed file', () => {
+    let named: TempGitRepo;
+
+    before(async () => {
+      named = await createTempGitRepo('jev-spec-diff-names-');
+      named.git('config', 'core.quotePath', 'true');
+      named.git('config', 'diff.renames', 'true');
+      await named.write('docs/spec.md', '# Spec\n\n## REQ-A-01\nThe module MUST export `a`.\n');
+      await named.write('src/é.ts', 'export const a = 1;\n');
+      await named.write('src/moved.ts', 'export const moved = true;\n');
+      named.git('add', '-A');
+      named.git('commit', '--quiet', '-m', 'init');
+    });
+
+    beforeEach(() => {
+      named.git('reset', '--quiet', '--hard', 'HEAD');
+      named.git('clean', '--quiet', '-fd');
+    });
+
+    after(async () => {
+      await named.cleanup();
+    });
+
+    it('REQ-DIFF-04: checks a target whose changed file has a non-ASCII name in a --diff run', async () => {
+      await named.write('src/é.ts', 'export const a = 2;\n');
+
+      const result = await runChecks(config, {
+        cwd: named.dir,
+        evaluator,
+        gitDiff: { diffRange: 'HEAD' },
+      });
+
+      expect(result.targets[0].skipped).toBe(undefined);
+      expect(evaluator.calls).toHaveLength(1);
+      expect(result.targets[0].changedFiles).toEqual(['src/é.ts']);
+    });
+
+    it('REQ-DIFF-04: checks a target whose changed file has a non-ASCII name in a --staged run', async () => {
+      await named.write('src/é.ts', 'export const a = 2;\n');
+      named.git('add', 'src/é.ts');
+
+      const result = await runChecks(config, {
+        cwd: named.dir,
+        evaluator,
+        gitDiff: { staged: true },
+      });
+
+      expect(result.targets[0].skipped).toBe(undefined);
+      expect(evaluator.calls).toHaveLength(1);
+      expect(result.targets[0].changedFiles).toEqual(['src/é.ts']);
+    });
+
+    it('REQ-DIFF-04: checks a target whose file was renamed to a path outside its codePaths', async () => {
+      await named.write('lib/.keep', '');
+      named.git('mv', 'src/moved.ts', 'lib/moved.ts');
+
+      const result = await runChecks(config, {
+        cwd: named.dir,
+        evaluator,
+        gitDiff: { staged: true },
+      });
+
+      expect(result.targets[0].skipped).toBe(undefined);
+      expect(evaluator.calls).toHaveLength(1);
+      expect(result.targets[0].changedFiles).toEqual(['src/moved.ts']);
+    });
+  });
+
   describe('without an API key', () => {
     const savedKeys = {
       TYPESAFE_AI_API_KEY: process.env.TYPESAFE_AI_API_KEY,

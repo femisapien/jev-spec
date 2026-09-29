@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { extractGitDiff, listStagedFiles, readStagedFile } from './git-diff.js';
+import { listChangedPaths, listStagedFiles, readStagedFile } from './git-diff.js';
 import { matchesGlobPatterns, resolveGlobPatterns } from './glob-matcher.js';
 import {
   assertInsideRoot,
@@ -151,16 +151,17 @@ async function readStagedFiles(
   return files;
 }
 
-/** The files of the diff, deleted ones included, that belong to the target. */
+/**
+ * The paths of the diff that belong to the target: deleted files, and both the old and the new
+ * path of a renamed file, so that code moved out of a target still selects it.
+ */
 async function changedFilesMatching(
   filePatterns: readonly string[],
   cwd: string,
   gitDiff: GitDiffOptions
 ): Promise<string[]> {
-  const diff = await extractGitDiff(gitDiff, cwd);
-  return diff.files
-    .map((file) => file.relativePath)
-    .filter((relativePath) => matchesGlobPatterns(relativePath, filePatterns));
+  const changedPaths = await listChangedPaths(gitDiff, cwd);
+  return changedPaths.filter((relativePath) => matchesGlobPatterns(relativePath, filePatterns));
 }
 
 function buildExtractedContext(
