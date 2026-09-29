@@ -19,3 +19,7 @@ A revision range that is empty, that starts with `-`, or that contains a charact
 ### REQ-READ-01: A touched target is read in full
 
 In a diff run, a target with at least one changed code file is checked on the whole content of all its code files, exactly as in a full run.
+
+### REQ-DIFF-04: A changed file counts under every path it has
+
+In a diff run, a changed file counts as changed under each of its paths: a renamed or copied file under its old path and under its new path, and a path that git quotes in its display output, such as one with non-ASCII letters, under the path as it is on disk. When the list of changed files that git returns cannot be read, the run stops with an error.

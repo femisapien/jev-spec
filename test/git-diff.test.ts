@@ -1,5 +1,6 @@
+import assert from 'node:assert/strict';
 import { after, before, describe, test as it } from 'node:test';
-import { extractGitDiff } from '../src/context/git-diff.js';
+import { extractGitDiff, listChangedPaths, parseNameStatus } from '../src/context/git-diff.js';
 import { createTempGitRepo, type TempGitRepo } from './git-test-utils.js';
 import { expect } from './test-utils.js';
 
@@ -38,5 +39,55 @@ describe('extractGitDiff against a real git repository', () => {
     expect(diff.files[0].status).toBe('added');
 
     repo.git('reset', '--quiet', 'src/staged.ts');
+  });
+
+  it('lists a staged non-ASCII name as it is on disk, not as git quotes it', async () => {
+    repo.git('config', 'core.quotePath', 'true');
+    await repo.write('src/日本.ts', 'export const x = 1;\n');
+    repo.git('add', 'src/日本.ts');
+
+    expect(await listChangedPaths({ staged: true }, repo.dir)).toEqual(['src/日本.ts']);
+
+    repo.git('reset', '--quiet', 'src/日本.ts');
+  });
+
+  it('fails when git cannot run the diff instead of reporting no change', async () => {
+    await assert.rejects(
+      () => listChangedPaths({ diffRange: 'no-such-branch...HEAD' }, repo.dir),
+      /Failed to run git diff/
+    );
+  });
+});
+
+describe('parseNameStatus', () => {
+  it('returns nothing for an empty diff', () => {
+    expect(parseNameStatus('')).toEqual([]);
+  });
+
+  it('returns both paths of a rename and of a copy', () => {
+    expect(
+      parseNameStatus('M\0src/a.ts\0R100\0src/old.ts\0lib/new.ts\0C75\0src/b.ts\0src/c.ts\0')
+    ).toEqual(['src/a.ts', 'src/old.ts', 'lib/new.ts', 'src/b.ts', 'src/c.ts']);
+  });
+
+  it('keeps a path with spaces, tabs and newlines intact', () => {
+    expect(parseNameStatus('A\0src/a b\tc\nd.ts\0')).toEqual(['src/a b\tc\nd.ts']);
+  });
+
+  it('REQ-DIFF-04: throws on output it cannot read', () => {
+    for (const output of [
+      'M\0src/a.ts',
+      'M src/a.ts\n',
+      'X\0src/a.ts\0',
+      'M\0\0',
+      'R100\0src/old.ts\0',
+      '\0',
+    ]) {
+      assert.throws(
+        () => parseNameStatus(output),
+        /git diff --name-status/,
+        JSON.stringify(output)
+      );
+    }
   });
 });
