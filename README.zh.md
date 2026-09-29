@@ -75,7 +75,7 @@ Linter 和 schema 校验可以告诉你 `REQ-AUTH-02` 存在、格式正确，�
 
 ### jev-spec 也检查它自己
 
-jev-spec 有自己的规范文档，并接受这些规范的检查。[`docs/specs/`](docs/specs) 写明需求，[`jev-spec.config.ts`](jev-spec.config.ts) 把每组需求与实现它的一到三个文件配对，[`test/probes/`](test/probes) 则为每条需求准备了一个故意破坏它的补丁。只有在完好的代码上通过、在被破坏的副本上未通过的 Rubric，才有资格进入门禁。[`docs/probe-results.md`](docs/probe-results.md) 记录了最近一次运行的结果：使用 `jev-1.13.0`，23 个探针全部被检出。对 8 个目标、23 个 Rubric 的完整检查耗时不到四秒，预估成本为 $0.0006。第一次运行并非如此：需要修改的是问题，而不是阈值；我们从中学到的内容写在配置文件开头的注释里。
+jev-spec 有自己的规范文档，并接受这些规范的检查。[`docs/specs/`](docs/specs) 写明需求，[`jev-spec.config.ts`](jev-spec.config.ts) 把每组需求与实现它的一到三个文件配对，[`test/probes/`](test/probes) 则为每条需求准备了一个故意破坏它的补丁。只有在完好的代码上通过、在被破坏的副本上未通过的 Rubric，才有资格进入门禁。[`docs/probe-results.md`](docs/probe-results.md) 记录了最近一次运行的结果：使用 `jev-1.13.0`，29 个探针全部被检出。对 9 个目标、29 个 Rubric 的完整检查耗时不到四秒，预估成本为 $0.001。第一次运行并非如此：需要修改的是问题，而不是阈值；我们从中学到的内容写在配置文件开头的注释里。
 
 ### 架构概览
 

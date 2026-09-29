@@ -75,7 +75,7 @@ You can put these questions to a general-purpose LLM in a prompt. Then you parse
 
 ### jev-spec checks itself
 
-jev-spec has specs of its own and is checked against them. [`docs/specs/`](docs/specs) states the requirements, [`jev-spec.config.ts`](jev-spec.config.ts) pairs each group with the one to three files that implement it, and [`test/probes/`](test/probes) holds, for every requirement, a patch that breaks it on purpose. A rubric belongs in the gate only when it passes on the intact code and fails on the broken copy. [`docs/probe-results.md`](docs/probe-results.md) records the latest run: 23 of 23 probes caught with `jev-1.13.0`. A full check of the 8 targets and 23 rubrics takes under four seconds and costs an estimated $0.0006. The first run did not look like that: the questions, not the thresholds, were what had to change, and what we learned is in the header of the configuration.
+jev-spec has specs of its own and is checked against them. [`docs/specs/`](docs/specs) states the requirements, [`jev-spec.config.ts`](jev-spec.config.ts) pairs each group with the one to three files that implement it, and [`test/probes/`](test/probes) holds, for every requirement, a patch that breaks it on purpose. A rubric belongs in the gate only when it passes on the intact code and fails on the broken copy. [`docs/probe-results.md`](docs/probe-results.md) records the latest run: 29 of 29 probes caught with `jev-1.13.0`. A full check of the 9 targets and 29 rubrics takes under four seconds and costs an estimated $0.001. The first run did not look like that: the questions, not the thresholds, were what had to change, and what we learned is in the header of the configuration.
 
 ### Architecture Overview
 
