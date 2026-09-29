@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - A run that exits with `2` still writes a report with `--format json` and `--format markdown`, to `--output` when it is set. The JSON is `{ "passed": false, "error": "...", "uncheckedTargets": [...] }`. When code that cannot be sent in full stops the run, `uncheckedTargets` lists each target concerned with its `reasons`, such as `big/huge.ts is larger than the limit of 2 MiB per file`. For any other error the list is empty. Before, these formats printed nothing on exit `2`, and a pipeline that read the report found no file. The terminal format still prints only the error, and the error still goes to standard error in every format.
 
+### Changed
+
+- The READMEs state that jev-spec sends the code of every target to the TypeSafe API unchanged and does not redact secrets. This is an accepted limitation, not an oversight: masking would change the code the model judges, so a rubric such as "Is a credential hard-coded?" would pass on the masked copy. The file-name exclusions (`.env*`, `.git`, `*.pem`, `*.key`, SSH keys) do not catch a secret in ordinary source, so keep files that hold secrets out of `codePaths`. The READMEs also say that the tags around the code are not escaped. A new requirement, REQ-READ-03, pins that the code reaches the evaluator unchanged, and the `jev-spec-init` skill gives the same advice for `codePaths`.
+
 ### Fixed
 
 - `jev-spec --help` still described `--staged` as "Check staged git changes only" and `--diff` as "Check a git diff range", which is what they did before 0.3.0. Both lines now say what a diff run does: it checks only the targets that the change touches, each in full. The code comments in the READMEs say the same, and the Japanese, Chinese and Korean READMEs head the section "diff run" instead of "check only the changes", which contradicted the sentence below it.
