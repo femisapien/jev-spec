@@ -274,7 +274,7 @@ assertions: {
 ### 目标配置接口 (TargetConfig)
 
 ```typescript
-export interface TargetConfig {
+export interface TargetConfig<R extends Record<string, AnyRubric> = Record<string, AnyRubric>> {
   /** 目标的可读描述信息（可选） */
   readonly description?: string;
 
@@ -292,7 +292,7 @@ export interface TargetConfig {
   };
 
   /** 声明的 Jev 评估准则 */
-  readonly rubrics: Record<string, AnyRubric>;
+  readonly rubrics: R;
 
   /** 针对 Jev 评估结果的断言规则 */
   readonly assertions: AssertionMap<R>;
@@ -344,7 +344,7 @@ bunx jev-spec check --target auth
 # 检查暂存改动所触及的目标（非常适合 pre-commit 钩子）
 bunx jev-spec check --staged
 
-# 检查分支区间的改动所触及的目标（非常适合 PR 门禁 CI）
+# 检查分支区间的改动所触及的目标（适合本地运行，或大到无法完整检查的仓库）
 bunx jev-spec check --diff origin/main...HEAD
 ```
 
@@ -353,7 +353,7 @@ bunx jev-spec check --diff origin/main...HEAD
 #### Dry Run、Mock 模式、帮助与版本
 
 ```bash
-# 校验配置是否可用：配置、规范解析、文件匹配。不做任何评估，也无需 API Key
+# 校验配置是否可用：配置、规范解析、文件匹配。不做任何评估，也无需 API Key，但仍会执行配置文件
 npx jev-spec check --dry-run
 
 # 离线 Mock 评估器（结果为占位数据，所有报告均标注 MOCK MODE）
@@ -364,7 +364,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-Dry Run 会针对每个目标输出找到的规范章节与需求 ID、匹配到的代码文件、将要提出的 Rubric 以及预估成本。对于没有任何 Rubric 提及的需求 ID 以及未匹配到任何文件的 `codePaths`，它会给出警告。无法放进一次请求的代码会让它以 `2` 停止，与真实运行相同。配置有效时退出码为 `0`，存在问题时为 `2`；由于不做任何检查，它不会以 `1` 退出。
+Dry Run 会针对每个目标输出找到的规范章节与需求 ID、匹配到的代码文件、将要提出的 Rubric 以及预估成本。对于没有任何 Rubric 提及的需求 ID 以及未匹配到任何文件的 `codePaths`，它会给出警告。无法放进一次请求的代码会让它以 `2` 停止，与真实运行相同。配置有效时退出码为 `0`，存在问题时为 `2`；由于不做任何检查，它不会以 `1` 退出。它不是静态检查：配置文件是 TypeScript 或 JavaScript，Dry Run 会像其他运行一样执行它（参见下文的 CI 威胁模型）。
 
 未知命令、未知选项、缺少取值的选项以及不支持的 `--format` 取值都会被拒绝，并返回退出码 `2`。
 
@@ -399,7 +399,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ## 双运行时支持矩阵
 
-`jev-spec` 为现代 **Node.js** 与 **Bun** 提供一流的双运行时支持。所有 Pull Request 都会在自动化 CI 中针对所有支持的版本进行严格测试。
+`jev-spec` 为现代 **Node.js** 与 **Bun** 提供一流的双运行时支持。所有 Pull Request 都会在自动化 CI 中基于 Node.js 22、Node.js 24 与最新的 Bun 版本进行测试。
 
 | 运行时环境 | 支持版本 | 支持层级 | 推荐适用场景 |
 | :--- | :--- | :--- | :--- |
@@ -409,7 +409,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ### Pre-Commit 钩子该用哪个运行时？
 
-都可以。以下是在维护者的笔记本电脑上针对本仓库实测的数据（Node 22.23、Bun 1.4）：CLI 在 Node 上启动约 0.1 秒，在 Bun 上约 0.05 秒；对全部 8 个目标执行 Dry Run 分别耗时 0.15 秒和 0.08 秒。对一个目标进行在线检查需要 0.3 到 0.9 秒，因此决定钩子耗时的是发往模型的请求，而不是运行时：
+都可以。以下是在维护者的笔记本电脑上针对本仓库实测的数据（Node 22.23、Bun 1.4）：CLI 在 Node 上启动约 0.1 秒，在 Bun 上约 0.05 秒；在 0.3.0 时对本仓库执行 Dry Run 分别耗时 0.15 秒和 0.08 秒。对一个目标进行在线检查需要 0.3 到 0.9 秒，因此决定钩子耗时的是发往模型的请求，而不是运行时：
 
 - **钩子的开销**：`jev-spec check --staged` 只检查本次提交触及的目标，每个目标一次请求。没有触及任何目标的提交不会发送任何内容，也不需要 API Key。
 - **`bunx` 默认使用 Node**：CLI 带有 `#!/usr/bin/env node` shebang，`bunx jev-spec` 会遵循它。要在 Bun 上运行，请使用 `bunx --bun jev-spec`。
@@ -424,11 +424,11 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 ### CI 威胁模型：外部 Fork PR 与密钥管理
 
 > [!WARNING]
-> 切勿向公开仓库中不受信任的外部 Pull Request（`pull_request` 事件）暴露 `TYPESAFE_AI_API_KEY`！
+> 切勿向未经审查的代码暴露 `TYPESAFE_AI_API_KEY`！GitHub 不会向来自 Fork 的 `pull_request` 运行提供密钥，但 `pull_request_target` 运行以及来自同一仓库分支的 Pull Request 会获得密钥。
 
-1. **不可信代码风险**：在公开开源仓库中，外部 PR 可能篡改 `jev-spec.config.ts`、规范或执行脚本。在持有高权限 API 密钥的环境下执行不可信代码存在密钥外泄风险。
+1. **不可信代码风险**：PR 可能篡改 `jev-spec.config.ts`、规范或代码。配置文件是 TypeScript 或 JavaScript，jev-spec 在加载时会执行它，包括 `--dry-run` 在内的每次运行都是如此。在持有高权限 API 密钥的环境下执行不可信代码存在密钥外泄风险。
 2. **推荐的纵深防御实践**：
-   - **针对 Fork PR 运行 Dry Run**：在外部 PR 检查中使用 Dry Run（`jev-spec check --dry-run`），校验配置有效性、规范解析完整性及路径匹配，而不暴露任何 API 密钥。
+   - **针对 Fork PR 运行 Dry Run**：对来自 Fork 的 PR 以 Dry Run（`jev-spec check --dry-run`）运行。它无需 API 密钥即可校验配置、规范解析与 glob 匹配，但仍会执行该 PR 的配置文件，也就会运行该 PR 的代码。请在没有密钥、权限只读（`permissions: contents: read`）的 Job 中运行它，并且绝不要在 `pull_request_target` 下运行。
    - **Environment 审批保护**：若需对外部 PR 执行在线检查，建议使用 GitHub Actions 的 Environment Approvals 功能，由维护者审查 Diff 后再授权提供密钥。
    - **针对 Main 主分支的在线检查**：在 `push` 至 `main` 分支及受信内部发布分支上运行完整的在线检查。
 
@@ -452,8 +452,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -464,14 +462,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run jev-spec (Internal Pull Request / Changed Targets)
+      - name: Run jev-spec (Same-Repository Pull Request / Full Run)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
-        run: |
-          npx jev-spec check \
-            --diff origin/main...HEAD \
-            --format markdown >> "$GITHUB_STEP_SUMMARY"
+        run: npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run jev-spec (Push to Main / Full Run)
         if: github.event_name == 'push'
@@ -484,16 +479,16 @@ jobs:
         run: npx jev-spec check --dry-run
 ```
 
-push 步骤有意执行完整检查：在 `main` 分支上 `origin/main...HEAD` 是空区间，所有目标都会被跳过。
+两个在线步骤都有意执行完整检查：差异检查会跳过代码未变更的所有目标，因此只修改规范的 PR 会在没有任何检查的情况下通过；而在 `main` 分支上 `origin/main...HEAD` 是空区间。本仓库自己的工作流（`.github/workflows/jev-spec.yml`）只在推送到 `main` 时运行在线检查，对每个 PR 运行 Dry Run，因为该 Job 仅用于报告，且仓库只有一位维护者。
 
 ### 内置纵深安全防御机制
 
-`jev-spec` 内置全面的防御性安全机制（加固项 S-01 至 S-05），全方位保护开发者设备与 CI 执行环境：
+`jev-spec` 内置防御性安全机制，保护开发者设备与 CI 执行环境：
 
 | 安全防御项 | 机制实现 |
 | :--- | :--- |
-| **路径遍历防御与 Root Jail** | 所有工作区路径均通过 realpath 规范化解析严格校验（`assertInsideRoot()`）。拒绝工作目录之外的绝对路径、`..` 目录遍历以及逃逸出仓库根目录的符号链接。 |
-| **Git Revision 参数净化** | 传入 `--diff` 的参数严格按照 Git 版本格式正则校验（`assertGitRevision()`）。拒绝任何以 `-` 开头的注入选项（防御类似 `--output` 的参数注入），在版本区间参数之前使用 `--end-of-options` 终止选项解析，并强制执行 15 秒命令超时。 |
+| **路径遍历防御与 Root Jail** | 来自配置与命令行的路径均通过 realpath 规范化解析严格校验（`assertInsideRoot()`）。拒绝工作目录之外的绝对路径、`..` 目录遍历以及解析到仓库根目录之外的符号链接。glob 匹配不跟随符号链接，真实路径位于仓库根目录之外的文件会被排除在匹配结果之外。 |
+| **Git Revision 参数净化** | git 通过 `execFile` 启动，不经过 Shell，参数以列表形式传递。传入 `--diff` 的参数严格按照 Git 版本格式正则校验（`assertGitRevision()`）。拒绝任何以 `-` 开头的注入选项（防御类似 `--output` 的参数注入），在版本区间参数之前使用 `--end-of-options` 终止选项解析，并强制执行 15 秒命令超时。 |
 | **提示词边界（尽力而为）** | 规范文档与代码分别放在不同字段中，用边界标签（`<specification_context>` 与 `<untrusted_source_code>`）包裹，并附带一条说明，要求模型忽略其中嵌入的指令。这是缓解措施，而非保证：TypeSafe 明确指出，为引导模型而写的内容（包括为自身分类辩护的文字）[可能改变答案](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content)。声称“已满足需求”的注释正属于此类，因此对于不受信任的代码，请把“通过”仅视为较弱的证据。 标签不会被转义：包含 `</untrusted_source_code>` 的代码可以提前结束其所在的块。 |
 | **Base URL SSRF 防御** | 默认情况下，请求严格限定在官方 TypeSafe AI 域名（`https://api.typesafe.ai`）。除非显式设置 `allowCustomBaseUrl: true`，否则拒绝所有自定义 API 地址，杜绝内网探测与 SSRF 风险。布尔值 `true` / `false` 以外的值（例如字符串 `"false"`）属于配置错误（退出码 `2`），`baseUrl` 必须是 http 或 https URL。 |
 | **资源耗尽保护** | 每个目标最多 500 个文件，单个文件最大 2 MiB，每个目标的代码最多 120,000 个字符，防止 DoS 攻击与内存耗尽。任何目标超出上限或含有无法读取的代码文件时，运行在发送任何内容之前以退出码 `2` 停止；代码不会被截断或遗漏。 |

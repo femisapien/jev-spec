@@ -53,7 +53,7 @@ This is the part that decides whether the gate is worth anything.
 - **Match the assertion to the answer that correct code gives.** A question that correct code answers "yes" takes `minProbability`; a question that correct code answers "no" takes `maxProbability`. Getting this backwards fails correct code and passes broken code, so the coverage table below has a column for it.
 - **Prohibitions** ("MUST NOT log tokens"): ask whether the forbidden thing happens, `'Is a token written to a log?'` (correct code answers "no"), and assert `maxProbability`. This form is very sharp for some requirements and blind for others; step 6 shows which. Choose the form without stacked negations. Avoid questions that require counting.
 - **`choice` and `score` only when something depends on them.** A generic "security posture" or "completeness" rubric is a vague, target-wide judgment. Add one when the user names a decision it drives.
-- **Tables are not sent to the model.** jev-spec 0.1.x replaces Markdown tables in the specification with `[table omitted]`. If criteria live in a table, write one question per row and restate the row in it. That only helps those questions: the drift question still cannot see the table and may take required behavior for undocumented behavior. Tell the user, and suggest converting the table to a list, which is the real fix. Do not edit the specification yourself.
+- **Tables are not sent to the model.** jev-spec replaces Markdown tables in the specification with `[table omitted]`, current versions included. If criteria live in a table, write one question per row and restate the row in it. That only helps those questions: the drift question still cannot see the table and may take required behavior for undocumented behavior. Tell the user, and suggest converting the table to a list, which is the real fix. Do not edit the specification yourself.
 - **Thresholds**: start with `minProbability: 0.85` and `maxProbability: 0.15`, and say plainly that these are starting points. They get tuned in step 6, with the real model.
 
 Before you write the file, write the **coverage table**: one row per rubric in requirement order, plus one row for every requirement without a rubric. For each rubric, first decide the answer that correct code gives, then derive the assertion from that answer, never the other way round. Keep the table in the final summary.
@@ -117,7 +117,7 @@ No API key is needed for this step. Check `npx jev-spec --help` and take the fir
 npx jev-spec check --dry-run
 ```
 
-A dry run evaluates nothing. It prints, per target, the specification sections and requirement IDs it found, the code files it matched and the rubrics it would ask. Exit code `0` means the setup is valid and `2` means it is broken (invalid config, missing spec file, `specFilter` that matches nothing, a target whose code does not fit in one request, a code file that cannot be read); fix it. Read the report: every target must list the spec file and the code files you expect. Treat each warning as a finding. In particular `no rubric names REQ-…` must agree with the "not covered" rows of your coverage table; if it does not, one of the two is wrong.
+A dry run evaluates nothing, but it loads the configuration, which is TypeScript or JavaScript and runs as code. It prints, per target, the specification sections and requirement IDs it found, the code files it matched and the rubrics it would ask. Exit code `0` means the setup is valid and `2` means it is broken (invalid config, missing spec file, `specFilter` that matches nothing, a target whose code does not fit in one request, a code file that cannot be read); fix it. Read the report: every target must list the spec file and the code files you expect. Treat each warning as a finding. In particular `no rubric names REQ-…` must agree with the "not covered" rows of your coverage table; if it does not, one of the two is wrong.
 
 **`--help` does not list `--dry-run` (jev-spec 0.1.x):**
 
@@ -187,7 +187,7 @@ jobs:
 ```
 
 - CI runs the **full** check on purpose. `--diff origin/main...HEAD` checks only the targets whose code changed, so it skips a pull request that changes only the specification. (Before jev-spec 0.3.0 it also sent nothing but the changed hunks, which failed rubrics whose subject lay outside them.) A full check costs cents. Use `--diff` (it needs `fetch-depth: 0`) only when the repo is too large for that.
-- The fork step is a dry run: it fails only when the setup is broken. On jev-spec 0.1.x, which has no `--dry-run`, use `npx jev-spec check --mock || [ "$?" -eq 1 ]` instead: it accepts exit codes 0 and 1 and still fails on 2, which is the mock-mode contract from step 5.
+- The fork step is a dry run: it fails only when the setup is broken. It still executes the configuration of the pull request, and with it that pull request's code, so keep it in a job without secrets and with `permissions: contents: read`, and never run it under `pull_request_target`. To run the live check on fork pull requests as well, put that step behind a GitHub Environment with required reviewers, so that a maintainer approves the diff before the secret is released. On jev-spec 0.1.x, which has no `--dry-run`, use `npx jev-spec check --mock || [ "$?" -eq 1 ]` instead: it accepts exit codes 0 and 1 and still fails on 2, which is the mock-mode contract from step 5.
 - `--output` only accepts paths inside the repository. For the step summary, redirect stdout as shown.
 - Until the `TYPESAFE_AI_API_KEY` secret exists, the verify step fails with "API key is required". Tell the user to add the secret first, or to merge the workflow once they have the key. Do not paper over it with `--mock`.
 
@@ -199,7 +199,7 @@ End with a summary in the user's language, in this shape:
 
 ```
 Done:
-  ✓ Installed jev-spec 0.1.x (npm)
+  ✓ Installed jev-spec <version> (npm)
   ✓ jev-spec.config.ts: 2 targets, 6 rubrics
   ✓ Wiring validated offline (dry run: exit code 0, no warnings)
 

@@ -274,7 +274,7 @@ assertions: {
 ### Target Configuration Interface
 
 ```typescript
-export interface TargetConfig {
+export interface TargetConfig<R extends Record<string, AnyRubric> = Record<string, AnyRubric>> {
   /** Optional human-readable description */
   readonly description?: string;
 
@@ -292,7 +292,7 @@ export interface TargetConfig {
   };
 
   /** Declared Jev evaluation rubrics */
-  readonly rubrics: Record<string, AnyRubric>;
+  readonly rubrics: R;
 
   /** Assertions checked against Jev results */
   readonly assertions: AssertionMap<R>;
@@ -344,7 +344,7 @@ Check only the targets whose code changed. Each of them is checked in full:
 # Check the targets that the staged changes touch (ideal for pre-commit git hooks)
 bunx jev-spec check --staged
 
-# Check the targets that a branch range touches (ideal for pull request CI)
+# Check the targets that a branch range touches (for local runs, or repositories too large for a full run)
 bunx jev-spec check --diff origin/main...HEAD
 ```
 
@@ -353,7 +353,7 @@ Targets whose `codePaths` match none of the changed files are reported as `SKIPP
 #### Dry Run, Mock Mode, Help & Version
 
 ```bash
-# Validate the setup: config, spec parsing, file matching. Evaluates nothing, needs no API key
+# Validate the setup: config, spec parsing, file matching. Evaluates nothing, needs no API key, still executes the config
 npx jev-spec check --dry-run
 
 # Offline mock evaluator (placeholder results, labelled MOCK MODE in every report)
@@ -364,7 +364,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions and `codePaths` that match no file. Code that does not fit in one request stops it with `2`, as it stops a real run. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked.
+A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions and `codePaths` that match no file. Code that does not fit in one request stops it with `2`, as it stops a real run. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked. It is not a static check: the configuration is TypeScript or JavaScript, and a dry run executes it like any other run (see the CI threat model below).
 
 Unknown commands, unknown options, missing option values and unsupported `--format` values are rejected with exit code `2`.
 
@@ -399,7 +399,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ## Dual Runtime Support Matrix
 
-`jev-spec` provides first-class dual-runtime support across modern **Node.js** and **Bun**. Every pull request is validated against both runtimes across all supported versions in automated CI.
+`jev-spec` provides first-class dual-runtime support across modern **Node.js** and **Bun**. Every pull request is tested in automated CI on Node.js 22, Node.js 24 and the latest Bun release.
 
 | Runtime | Supported Versions | Status | Best For |
 | :--- | :--- | :--- | :--- |
@@ -409,7 +409,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ### Which runtime for a pre-commit hook?
 
-Either. Measured on the maintainer's laptop against this repository (Node 22.23, Bun 1.4): the CLI starts in about 0.1 s on Node and about 0.05 s on Bun, and a dry run of all 8 targets takes 0.15 s and 0.08 s. A live check of one target takes 0.3 to 0.9 s, so the request to the model, not the runtime, decides how long a hook takes:
+Either. Measured on the maintainer's laptop against this repository (Node 22.23, Bun 1.4): the CLI starts in about 0.1 s on Node and about 0.05 s on Bun, and a dry run of this repository at 0.3.0 took 0.15 s and 0.08 s. A live check of one target takes 0.3 to 0.9 s, so the request to the model, not the runtime, decides how long a hook takes:
 
 - **What a hook costs**: `jev-spec check --staged` checks only the targets that the commit touches, each in one request. A commit that touches no target sends nothing and needs no API key.
 - **`bunx` runs Node by default**: the CLI has a `#!/usr/bin/env node` shebang, and `bunx jev-spec` honours it. Use `bunx --bun jev-spec` to run it on Bun.
@@ -424,11 +424,11 @@ Either. Measured on the maintainer's laptop against this repository (Node 22.23,
 ### CI Threat Model: Fork PRs & Secret Handling
 
 > [!WARNING]
-> **DO NOT** expose `TYPESAFE_AI_API_KEY` to untrusted external pull requests (`pull_request` event on public repositories)!
+> **DO NOT** expose `TYPESAFE_AI_API_KEY` to code you have not reviewed! GitHub gives no secrets to a `pull_request` run from a fork, but a `pull_request_target` run and a pull request from a branch of the same repository do receive them.
 
-1. **Untrusted Code Risk**: In public repositories, pull requests can modify `jev-spec.config.ts`, specifications, or code. Executing untrusted code with access to sensitive credentials introduces secret exfiltration vectors.
+1. **Untrusted Code Risk**: A pull request can modify `jev-spec.config.ts`, specifications, or code. The configuration is TypeScript or JavaScript, and jev-spec executes it when it loads it, in every run including `--dry-run`. Executing untrusted code with access to sensitive credentials introduces secret exfiltration vectors.
 2. **Recommended Defense-in-Depth Patterns**:
-   - **Dry Run for Fork PRs**: Run PR checks as a dry run (`jev-spec check --dry-run`), validating configuration structure, spec parsing, and glob matching without exposing API credentials.
+   - **Dry Run for Fork PRs**: Run fork pull requests as a dry run (`jev-spec check --dry-run`). It validates the configuration, spec parsing and glob matching without an API key, but it still executes the configuration of the pull request, and with it that pull request's code. Run it in a job without secrets and with read-only permissions (`permissions: contents: read`), and never under `pull_request_target`.
    - **Environment Protection**: For live checks on external PRs, use GitHub Actions Environment Approvals so maintainers review the diff before secrets are unlocked.
    - **Main Branch Checks**: Run live checks on `push` to `main` and trusted internal release branches.
 
@@ -452,8 +452,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -464,14 +462,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run jev-spec (Internal Pull Request / Changed Targets)
+      - name: Run jev-spec (Same-Repository Pull Request / Full Run)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
-        run: |
-          npx jev-spec check \
-            --diff origin/main...HEAD \
-            --format markdown >> "$GITHUB_STEP_SUMMARY"
+        run: npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run jev-spec (Push to Main / Full Run)
         if: github.event_name == 'push'
@@ -484,16 +479,16 @@ jobs:
         run: npx jev-spec check --dry-run
 ```
 
-The push step is a full run on purpose: on `main`, `origin/main...HEAD` is an empty range, so every target would be skipped.
+Both live steps are full runs on purpose: a diff run skips every target whose code did not change, so a pull request that changes only a specification would pass without anything being checked, and on `main` the range `origin/main...HEAD` is empty. This repository's own workflow (`.github/workflows/jev-spec.yml`) runs the live check only on pushes to `main` and a dry run on every pull request, because its job is advisory and the repository has a single maintainer.
 
 ### Built-in Security Controls
 
-`jev-spec` implements comprehensive defensive security controls (Hardening S-01 through S-05) protecting developer machines and CI runners:
+`jev-spec` implements defensive security controls that protect developer machines and CI runners:
 
 | Security Control | What It Does |
 | :--- | :--- |
-| **Path Traversal & Root Jail** | Workspace paths are strictly validated using realpath resolution (`assertInsideRoot()`). Absolute paths outside cwd, `..` directory traversal, and symlinks escaping the repository root are rejected. |
-| **Git Revision Sanitization** | Arguments passed to `--diff` are validated against strict git revision patterns (`assertGitRevision()`). Rejects flags starting with `-` (blocking option injection like `--output`), terminates option parsing with `--end-of-options` before the revision range, and enforces a 15-second command timeout. |
+| **Path Traversal & Root Jail** | Paths from the configuration and the command line are strictly validated using realpath resolution (`assertInsideRoot()`). Absolute paths outside cwd, `..` directory traversal, and symlinks that resolve outside the repository root are rejected. Glob matching does not follow symbolic links, and a matched file whose real path lies outside the repository root is left out of the match. |
+| **Git Revision Sanitization** | git is started with `execFile`, without a shell, and its arguments are passed as a list. Arguments passed to `--diff` are validated against strict git revision patterns (`assertGitRevision()`). Rejects flags starting with `-` (blocking option injection like `--output`), terminates option parsing with `--end-of-options` before the revision range, and enforces a 15-second command timeout. |
 | **Prompt Boundaries (best effort)** | The specification and the code are sent in separate fields, inside delimiting tags (`<specification_context>` and `<untrusted_source_code>`), with a note that asks the model to ignore instructions embedded in them. This is a mitigation, not a guarantee: TypeSafe documents that content written to steer the model, including text that argues for its own classification, [can move the answer](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content). A comment that claims compliance is such text, so treat a pass on code you do not trust as weak evidence. The tags are not escaped: code that contains `</untrusted_source_code>` can end its block early. |
 | **Base URL SSRF Protection** | By default, requests are routed exclusively to official TypeSafe AI endpoints (`https://api.typesafe.ai`). Custom API base URLs are blocked unless `allowCustomBaseUrl: true` is explicitly configured. Any value other than the booleans `true` and `false`, such as the string `"false"`, is a configuration error (exit code `2`), and `baseUrl` must be an http or https URL. |
 | **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per target, 2 MiB per file and 120,000 characters of code per target. A target over a limit, or with a code file that cannot be read, stops the run with exit code `2` before anything is sent; its code is never cut or left out. |

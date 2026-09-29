@@ -274,7 +274,7 @@ assertions: {
 ### 대상 구성 인터페이스
 
 ```typescript
-export interface TargetConfig {
+export interface TargetConfig<R extends Record<string, AnyRubric> = Record<string, AnyRubric>> {
   /** 대상에 대한 설명 (선택 사항) */
   readonly description?: string;
 
@@ -292,7 +292,7 @@ export interface TargetConfig {
   };
 
   /** 선언된 Jev 평가 루브릭 */
-  readonly rubrics: Record<string, AnyRubric>;
+  readonly rubrics: R;
 
   /** Jev 평가 결과와 대조할 단언 */
   readonly assertions: AssertionMap<R>;
@@ -344,7 +344,7 @@ bunx jev-spec check --target auth
 # 스테이징된 변경이 닿은 대상을 검사 (pre-commit 훅에 최적)
 bunx jev-spec check --staged
 
-# 브랜치 범위의 변경이 닿은 대상을 검사 (PR CI 파이프라인에 최적)
+# 브랜치 범위의 변경이 닿은 대상을 검사 (로컬 실행, 또는 전체 검사를 하기에 너무 큰 저장소용)
 bunx jev-spec check --diff origin/main...HEAD
 ```
 
@@ -353,7 +353,7 @@ bunx jev-spec check --diff origin/main...HEAD
 #### Dry Run, Mock 모드, 도움말 및 버전
 
 ```bash
-# 설정 검증: 설정, 명세 파싱, 파일 매칭. 아무것도 평가하지 않으며 API 키도 필요 없음
+# 설정 검증: 설정, 명세 파싱, 파일 매칭. 아무것도 평가하지 않으며 API 키도 필요 없음. 설정 파일은 실행됨
 npx jev-spec check --dry-run
 
 # 오프라인 Mock 평가기 (결과는 자리 표시용 값이며 모든 보고서에 MOCK MODE 표시)
@@ -364,7 +364,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-Dry Run은 대상마다 찾아낸 명세 섹션과 요구 사항 ID, 매칭된 코드 파일, 질문할 루브릭, 예상 비용을 출력합니다. 어떤 루브릭도 언급하지 않는 요구 사항 ID와 어떤 파일과도 일치하지 않는 `codePaths`에 대해서는 경고합니다. 한 번의 요청에 들어가지 않는 코드는 실제 실행과 마찬가지로 종료 코드 `2`로 중단시킵니다. 설정이 올바르면 종료 코드 `0`, 문제가 있으면 `2`로 종료합니다. 아무것도 검사하지 않으므로 `1`로 종료하는 일은 없습니다.
+Dry Run은 대상마다 찾아낸 명세 섹션과 요구 사항 ID, 매칭된 코드 파일, 질문할 루브릭, 예상 비용을 출력합니다. 어떤 루브릭도 언급하지 않는 요구 사항 ID와 어떤 파일과도 일치하지 않는 `codePaths`에 대해서는 경고합니다. 한 번의 요청에 들어가지 않는 코드는 실제 실행과 마찬가지로 종료 코드 `2`로 중단시킵니다. 설정이 올바르면 종료 코드 `0`, 문제가 있으면 `2`로 종료합니다. 아무것도 검사하지 않으므로 `1`로 종료하는 일은 없습니다. 정적 검사가 아닙니다. 설정 파일은 TypeScript 또는 JavaScript이며, Dry Run도 다른 실행과 똑같이 이를 실행합니다(아래의 CI 위협 모델 참고).
 
 알 수 없는 명령, 알 수 없는 옵션, 값이 누락된 옵션, 지원하지 않는 `--format` 값은 종료 코드 `2`와 함께 거부됩니다.
 
@@ -399,7 +399,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ## 듀얼 런타임 지원 매트릭스
 
-`jev-spec`은 최신 **Node.js** 및 **Bun** 환경에 대해 일등(First-Class) 듀얼 런타임 지원을 제공합니다. 모든 풀 리퀘스트는 자동화된 CI를 통해 지원 대상 버전 전반에서 두 런타임 모두에 대해 철저히 검증됩니다.
+`jev-spec`은 최신 **Node.js** 및 **Bun** 환경에 대해 일등(First-Class) 듀얼 런타임 지원을 제공합니다. 모든 풀 리퀘스트는 자동화된 CI에서 Node.js 22, Node.js 24, 최신 Bun 릴리스로 테스트됩니다.
 
 | 런타임 | 지원 버전 | 지원 단계 | 권장 환경 |
 | :--- | :--- | :--- | :--- |
@@ -409,7 +409,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ### Pre-Commit 훅에는 어떤 런타임을 쓸까?
 
-어느 쪽이든 괜찮습니다. 메인테이너의 노트북에서 이 저장소를 대상으로 실측한 값입니다(Node 22.23, Bun 1.4). CLI 시작 시간은 Node에서 약 0.1초, Bun에서 약 0.05초이고, 8개 대상 전체의 Dry Run은 각각 0.15초와 0.08초가 걸렸습니다. 실제 API로 대상 하나를 검사하는 데는 0.3~0.9초가 걸리므로, 훅의 소요 시간을 결정하는 것은 런타임이 아니라 모델로 보내는 요청입니다.
+어느 쪽이든 괜찮습니다. 메인테이너의 노트북에서 이 저장소를 대상으로 실측한 값입니다(Node 22.23, Bun 1.4). CLI 시작 시간은 Node에서 약 0.1초, Bun에서 약 0.05초이고, 0.3.0 시점의 이 저장소 Dry Run은 각각 0.15초와 0.08초가 걸렸습니다. 실제 API로 대상 하나를 검사하는 데는 0.3~0.9초가 걸리므로, 훅의 소요 시간을 결정하는 것은 런타임이 아니라 모델로 보내는 요청입니다.
 
 - **훅에 드는 비용**: `jev-spec check --staged`는 커밋이 건드린 대상만, 대상마다 한 번의 요청으로 검사합니다. 어떤 대상도 건드리지 않은 커밋은 아무것도 전송하지 않으며 API 키도 필요 없습니다.
 - **`bunx`는 기본적으로 Node를 사용합니다**: CLI에는 `#!/usr/bin/env node` shebang이 있고 `bunx jev-spec`은 이를 따릅니다. Bun에서 실행하려면 `bunx --bun jev-spec`을 사용하세요.
@@ -424,11 +424,11 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 ### CI 위협 모델: 외부 Fork PR 및 시크릿 관리
 
 > [!WARNING]
-> 공개 저장소의 신뢰할 수 없는 외부 풀 리퀘스트(`pull_request` 이벤트)에 `TYPESAFE_AI_API_KEY`를 절대 노출하지 마십시오!
+> 검토하지 않은 코드에 `TYPESAFE_AI_API_KEY`를 절대 노출하지 마십시오! GitHub는 포크에서 온 `pull_request` 실행에는 시크릿을 주지 않지만, `pull_request_target` 실행과 같은 저장소의 브랜치에서 온 풀 리퀘스트에는 줍니다.
 
-1. **신뢰할 수 없는 코드 위험**: 공개 저장소에서 외부 PR은 `jev-spec.config.ts`, 명세 또는 코드를 임의로 변경할 수 있습니다. 민감한 API 자격 증명이 노출된 상태에서 외부 코드를 실행하면 시크릿 탈취 경로가 생길 수 있습니다.
+1. **신뢰할 수 없는 코드 위험**: PR은 `jev-spec.config.ts`, 명세 또는 코드를 변경할 수 있습니다. 설정 파일은 TypeScript 또는 JavaScript이며, jev-spec은 이를 불러올 때 실행합니다. `--dry-run`을 포함한 모든 실행에서 그렇습니다. 민감한 API 자격 증명이 노출된 상태에서 외부 코드를 실행하면 시크릿 탈취 경로가 생길 수 있습니다.
 2. **권장되는 심층 방어 전략**:
-   - **Fork PR에 Dry Run 적용**: 외부 PR 검사에는 Dry Run(`jev-spec check --dry-run`)을 사용하여 API 키 노출 없이 설정 구조, 명세 파싱 및 glob 매칭을 안전하게 검증합니다.
+   - **Fork PR에 Dry Run 적용**: 포크에서 온 PR은 Dry Run(`jev-spec check --dry-run`)으로 실행합니다. Dry Run은 API 키 없이 설정, 명세 파싱, glob 매칭을 검증하지만, PR의 설정 파일은 실행하므로 그 PR의 코드도 실행됩니다. 시크릿이 없고 권한이 읽기 전용(`permissions: contents: read`)인 작업에서 실행하고, `pull_request_target`에서는 절대 실행하지 마십시오.
    - **Environment 승인 보호**: 외부 PR에 대해 실제 API로 검사해야 하는 경우 GitHub Actions의 Environment Approvals를 적용하여 메인테이너가 변경 사항을 확인한 후 시크릿이 제공되도록 설정합니다.
    - **Main 브랜치 검사**: `main` 브랜치로의 `push` 및 신뢰할 수 있는 내부 릴리스 브랜치에서 실제 API로 검사를 수행합니다.
 
@@ -452,8 +452,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -464,14 +462,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run jev-spec (Internal Pull Request / Changed Targets)
+      - name: Run jev-spec (Same-Repository Pull Request / Full Run)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
-        run: |
-          npx jev-spec check \
-            --diff origin/main...HEAD \
-            --format markdown >> "$GITHUB_STEP_SUMMARY"
+        run: npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run jev-spec (Push to Main / Full Run)
         if: github.event_name == 'push'
@@ -484,16 +479,16 @@ jobs:
         run: npx jev-spec check --dry-run
 ```
 
-push 단계는 의도적으로 전체를 검사합니다. `main`에서는 `origin/main...HEAD`가 빈 범위가 되어 모든 대상이 건너뛰어지기 때문입니다.
+실제 API를 쓰는 두 단계는 의도적으로 전체를 검사합니다. 변경 기반 검사는 코드가 바뀌지 않은 대상을 모두 건너뛰므로, 명세만 바꾼 PR은 아무것도 검사되지 않은 채 통과하게 됩니다. 또한 `main`에서는 `origin/main...HEAD`가 빈 범위가 됩니다. 이 저장소 자체의 워크플로(`.github/workflows/jev-spec.yml`)는 실제 API 검사를 `main`으로의 push에서만 수행하고 모든 PR에서는 Dry Run을 수행합니다. 그 작업은 보고만 하며, 메인테이너가 한 명이기 때문입니다.
 
 ### 기본 탑재 보안 방어 기능
 
-`jev-spec`은 개발자 머신과 CI 런너를 보호하기 위해 광범위한 다층 방어 보안 제어(보안 강화 S-01 ~ S-05)를 구현하고 있습니다.
+`jev-spec`은 개발자 머신과 CI 런너를 보호하기 위해 방어적인 보안 제어를 구현하고 있습니다.
 
 | 보안 통제 항목 | 구현 내용 |
 | :--- | :--- |
-| **경로 탐색 방지 및 Root Jail** | 작업 공간 경로는 realpath 정규화를 통해 엄격히 검증됩니다(`assertInsideRoot()`). 현재 작업 디렉터리 외부의 절대 경로, `..` 경로 탐색, 저장소 루트를 벗어나는 심볼릭 링크 접근을 원천 차단합니다. |
-| **Git 리비전 인자 검증** | `--diff`에 전달되는 인자는 엄격한 정규식 패턴으로 검증됩니다(`assertGitRevision()`). `-`로 시작하는 플래그를 거부하여 명령줄 옵션 인젝션(예: `--output`)을 차단하고, 리비전 범위 앞에 `--end-of-options`를 두어 옵션 파싱을 종료하며 15초 타임아웃을 강제합니다. |
+| **경로 탐색 방지 및 Root Jail** | 설정과 명령줄에서 온 경로는 realpath 정규화를 통해 엄격히 검증됩니다(`assertInsideRoot()`). 현재 작업 디렉터리 외부의 절대 경로, `..` 경로 탐색, 저장소 루트 밖으로 해석되는 심볼릭 링크는 거부됩니다. glob 매칭은 심볼릭 링크를 따라가지 않으며, 실제 경로가 저장소 루트 밖에 있는 파일은 매칭에서 제외됩니다. |
+| **Git 리비전 인자 검증** | git은 셸 없이 `execFile`로 시작되며 인자는 목록으로 전달됩니다. `--diff`에 전달되는 인자는 엄격한 정규식 패턴으로 검증됩니다(`assertGitRevision()`). `-`로 시작하는 플래그를 거부하여 명령줄 옵션 인젝션(예: `--output`)을 차단하고, 리비전 범위 앞에 `--end-of-options`를 두어 옵션 파싱을 종료하며 15초 타임아웃을 강제합니다. |
 | **프롬프트 경계(최선의 노력)** | 명세와 코드는 서로 다른 필드에 담기고, 경계 태그(`<specification_context>` 및 `<untrusted_source_code>`)로 감싸이며, 그 안에 포함된 지시문을 무시하라는 안내문과 함께 전송됩니다. 이것은 완화책이며 보장이 아닙니다. TypeSafe는 모델을 유도하려고 쓰인 내용(자신의 분류를 스스로 주장하는 글 포함)이 [답을 바꿀 수 있다](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content)고 밝히고 있습니다. "요구 사항을 충족한다"고 주장하는 주석이 바로 그런 글이므로, 신뢰할 수 없는 코드에 대한 통과는 약한 증거로만 취급하세요. 태그는 이스케이프되지 않습니다. `</untrusted_source_code>`를 포함한 코드는 해당 블록을 일찍 닫을 수 있습니다. |
 | **Base URL SSRF 방어** | 기본적으로 모든 요청은 공식 TypeSafe AI 엔드포인트(`https://api.typesafe.ai`)로만 라우팅됩니다. `allowCustomBaseUrl: true`가 명시적으로 설정되지 않는 한 커스텀 API 베이스 URL 접근이 차단됩니다. 불리언 `true` / `false` 이외의 값(문자열 `"false"` 등)은 설정 오류(종료 코드 `2`)이며, `baseUrl`은 http 또는 https URL이어야 합니다. |
 | **자원 소진 방지 제한** | 대상당 최대 500개 파일, 파일당 2 MiB, 대상당 코드 120,000자 제한을 강제하여 DoS 공격 및 메모리 고갈을 방지합니다. 제한을 넘거나 읽을 수 없는 코드 파일이 있는 대상이 있으면 아무것도 보내기 전에 실행이 종료 코드 `2`로 멈추며, 코드가 잘리거나 빠지는 일은 없습니다. |
