@@ -14,6 +14,17 @@ import { defineConfig, noul } from 'jev-spec';
 //   similar ones.
 // - Keep the code of a target small. The same question separated intact from broken code less
 //   well when an unrelated file was sent along.
+// - Name what the code of the target names. "An error that lists targets whose code cannot be
+//   checked" scored 0.59 on intact code, because that error is defined in a file the target does
+//   not send; "an UncheckedTargetsError ... the targets of that error" scored 0.94 (REQ-EXIT-05).
+// - A probe breaks the requirement plainly. A probe that only narrowed the choice check to
+//   assertions with allowedChoices, under a comment that still said the check runs first, scored
+//   0.88 on the broken copy; removing the check with its comment scored 0.42 (REQ-ANSWER-04).
+// - A condition on the fields the code reads works better than a description of the situation.
+//   "A file over the size limit or code cut at the character budget" scored 0.93 intact and 0.70
+//   broken; "a file in oversizedFiles or is truncated" scored 0.94 and 0.32 (REQ-RUN-02). Asking
+//   what the run does "for every file in oversizedFiles" instead cut the broken score to 0.10 but
+//   left intact code at 0.89.
 // - Asking whether something forbidden happens works well for some requirements and not at all
 //   for others, so try it on a probe instead of assuming it.
 //
@@ -46,7 +57,7 @@ export default defineConfig({
           'Do --help and --version print their output and return exit code 0 before any configuration file is loaded?'
         ),
         'REQ-EXIT-05': noul(
-          'When the check command catches an error that lists targets whose code cannot be checked, does the json or markdown report it writes name each of those targets?'
+          'When the check command catches an UncheckedTargetsError, does the report it writes in the json and markdown formats contain the targets of that error?'
         ),
       },
       assertions: {
@@ -103,7 +114,7 @@ export default defineConfig({
           'Does a run validate the configuration before it reads a spec, reads code or creates the client of the API?'
         ),
         'REQ-RUN-02': noul(
-          'Before the first target is evaluated, does a run throw an error when the code of any target it checks has a file over the size limit or was cut at the character budget?'
+          'When the code context of a target has a file in oversizedFiles or is truncated, does the run throw an error before the first target is evaluated?'
         ),
         'REQ-RUN-03': noul(
           'When a file that matches the codePaths of a target cannot be read, does the run throw an error before the first target is evaluated, instead of leaving the file out?'
