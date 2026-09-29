@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-29
+
+A release about failing closed. A security assessment ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)) reproduced several ways in which a check could pass without the model having judged the code: a changed file the diff run did not see, a file that was too large or could not be read, code cut at the character budget, an answer that was not a number, a client option read by truthiness. Each of them now fails the assertion or stops the run with exit code `2`. One change is breaking: read the upgrade notes.
+
 ### Breaking changes
 
 - **Code that does not fit in one request now stops the run with exit code `2`.** Until now a matched file over 2 MiB was left out without a word, and code past 120,000 characters per target was cut. The model then judged what was left, and the check could pass on code it never saw ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)). A run now reads every target it checks before sending anything. If a target has a file over the limit or code over the budget, the run sends nothing and exits with `2`. The error names each such target and file. `--dry-run` stops the same way, and replaces its old warning that the code "would be cut". A target that a diff run skips is not affected. **A run that passed before can now stop.** To fix it, split the target or narrow its `codePaths` until each target fits, and run `jev-spec check --dry-run` to confirm. `ExtractedCodeContext` has a new field, `oversizedFiles`, that lists the files left out.
@@ -26,6 +30,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A choice answer that is not one of the options of its rubric could pass its assertion. The live evaluator turned the label into a string with `String()`, so the number `1` matched an option named `"1"`, and an assertion that only lists `blockedChoices` passed any label outside that list, such as `"null"` or a label the rubric does not have. Now a choice that is not one of the rubric's options fails every assertion on it, and the report names the value and the options. The live evaluator no longer converts the label. This applies to any evaluator, including one passed to `runChecks` ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)).
 - A code file that could not be read was left out without a word, and the model judged the rest of the target. A file that matched `codePaths` but was not readable (for example with mode `000`), or that was deleted between matching and reading, could make a check pass on code the model never saw. Now such a file stops the run with exit code `2` before anything is sent. The error, and the `uncheckedTargets` of the JSON report, name the target, the file and the error code, such as `src/a.ts cannot be read (EACCES)`. `--dry-run` stops the same way. `ExtractedCodeContext` has a new field, `unreadableFiles`, and `extractCodeFromPaths` records an unreadable path there instead of skipping it ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)).
 - The exported `extractGitDiff` still read file names from the display headers of the patch. With git's default `core.quotePath`, a file with non-ASCII letters in its name was missing from both `files` and `changedPaths`, and a renamed file appeared only under its new path. It now takes the files and their paths from `git diff --name-status -z`, the same source a diff run uses. **`changedPaths` now also lists the old path of a renamed or copied file**, and each entry of `files` has a new optional field, `previousPath`, for such a file. A `git diff` that fails now always throws: before, a failure that had already printed part of the patch returned that part. `parseUnifiedDiff` is unchanged and still reads the display headers ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)).
+
+### Upgrade notes
+
+- Run `jev-spec check --dry-run` once after upgrading. If it now exits with `2`, a target has a file over 2 MiB, more than 120,000 characters of code, or a file that cannot be read. Split the target or narrow its `codePaths` until the dry run exits with `0`. Until now such a run passed on part of the code.
+- A configuration whose client options have the wrong type (`allowCustomBaseUrl: "false"`, `mock: 0`, `timeoutMs: "5000"`, a `baseUrl` that is not an http or https URL) now stops with exit code `2`. Write booleans and numbers as such.
+- An assertion can now fail with `Evaluator returned an invalid …`. That answer was not a number in its range, or not an option of its rubric, and it used to be compared as if it were. A custom evaluator must return numbers and option names as such.
+- If something reads the JSON report, an exit `2` now writes `{ "passed": false, "error", "uncheckedTargets" }` instead of nothing. Branch on the exit code or on `error`.
+- If you call `extractGitDiff`, `changedPaths` now also lists the old path of a renamed or copied file.
+
+### Internal
+
+- The self-check grows from 25 to 34 requirements: 29 of them are paired with rubrics in 9 targets, and 5 are pinned by tests (`docs/specs/checked-by-tests.md`). All 29 probes are caught with `jev-1.13.0` (`docs/probe-results.md`). Three rubrics needed a second wording or a sharper probe before their probe was caught, and what that taught is in the header of `jev-spec.config.ts`: name what the code of the target names, ask about the fields the code reads rather than describe the situation, and let a probe remove a comment that still states the behaviour it breaks.
+- The live self-check in CI runs only on pushes to `main`. Pull requests always get a dry run and never receive the API key, and on `main` the key reaches only the step that runs the check, not `npm ci` or the build.
+- `npm test` deletes `dist-test/` before it builds, so a test removed on another branch no longer runs from a stale build.
 
 ## [0.3.0] - 2026-09-21
 
@@ -147,7 +165,8 @@ A bug-fix release. Several of these bugs made a check pass, fail or get skipped 
 
 - Initial release.
 
-[Unreleased]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.1.0...v0.1.1
