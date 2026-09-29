@@ -1,6 +1,6 @@
 {
   "name": "jev-spec",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Catch spec drift on every commit: check your code against your Markdown specs with TypeSafe AI's Jev model.",
   "type": "module",
   "main": "./dist/index.js",
