@@ -43,6 +43,73 @@ export async function readStagedFile(
   }
 }
 
+/** The arguments of `git diff` that choose what it compares. */
+function diffSelection(options: GitDiffOptions): string[] {
+  if (options.staged) {
+    return ['--staged'];
+  }
+  if (options.diffRange) {
+    assertGitRevision(options.diffRange);
+    // The revision must precede `--`; anything after it is parsed as a pathspec.
+    return ['--end-of-options', options.diffRange, '--'];
+  }
+  return [];
+}
+
+/**
+ * Every path the diff touches, relative to the repository root: both paths of a renamed or copied
+ * file, and names that git would quote in its display output, exactly as they are on disk.
+ */
+export async function listChangedPaths(
+  options: GitDiffOptions,
+  cwd: string = process.cwd()
+): Promise<string[]> {
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileAsync(
+      'git',
+      ['diff', '--name-status', '-z', ...diffSelection(options)],
+      {
+        cwd,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: 'utf-8',
+        timeout: GIT_DIFF_TIMEOUT_MS,
+      }
+    ));
+  } catch (error: unknown) {
+    throw new Error(`Failed to run git diff: ${(error as Error).message ?? String(error)}`);
+  }
+  return parseNameStatus(stdout);
+}
+
+/**
+ * Parses the output of `git diff --name-status -z`: a status, then one path, or two for a rename
+ * or a copy, each field ended by NUL. Anything else throws, so that a change can never go unseen.
+ */
+export function parseNameStatus(output: string): string[] {
+  const fields = output.split('\0');
+  if (fields.pop() !== '') {
+    throw new Error('Unexpected output from git diff --name-status: it does not end with NUL');
+  }
+
+  const paths: string[] = [];
+  for (let i = 0; i < fields.length; ) {
+    const status = fields[i++];
+    const pathCount = /^[ADMTU]$/.test(status) ? 1 : /^[RC]\d{0,3}$/.test(status) ? 2 : 0;
+    if (pathCount === 0) {
+      throw new Error(`Unexpected status "${status}" from git diff --name-status`);
+    }
+    for (let n = 0; n < pathCount; n++) {
+      const changedPath = fields[i++];
+      if (!changedPath) {
+        throw new Error(`Missing path after status "${status}" from git diff --name-status`);
+      }
+      paths.push(changedPath);
+    }
+  }
+  return paths;
+}
+
 /**
  * Runs git diff and returns parsed file hunks.
  */
@@ -51,15 +118,7 @@ export async function extractGitDiff(
   cwd: string = process.cwd(),
   contextLines: number = DEFAULT_CONTEXT_LINES
 ): Promise<GitDiffResult> {
-  const args = ['diff', `--unified=${contextLines}`];
-
-  if (options.staged) {
-    args.push('--staged');
-  } else if (options.diffRange) {
-    assertGitRevision(options.diffRange);
-    // The revision must precede `--`; anything after it is parsed as a pathspec.
-    args.push('--end-of-options', options.diffRange, '--');
-  }
+  const args = ['diff', `--unified=${contextLines}`, ...diffSelection(options)];
 
   let stdout = '';
   try {
