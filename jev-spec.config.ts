@@ -94,9 +94,13 @@ export default defineConfig({
         'REQ-RUN-01': noul(
           'Does a run validate the configuration before it reads a spec, reads code or creates the client of the API?'
         ),
+        'REQ-RUN-02': noul(
+          'Before the first target is evaluated, does a run throw an error when the code of any target it checks has a file over the size limit or was cut at the character budget?'
+        ),
       },
       assertions: {
         'REQ-RUN-01': MET,
+        'REQ-RUN-02': MET,
       },
     },
 

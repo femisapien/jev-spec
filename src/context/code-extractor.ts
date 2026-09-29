@@ -27,22 +27,29 @@ export interface ExtractedCodeContext {
   readonly mode: 'full' | 'diff';
   /** True when the combined context was cut at the character budget. */
   readonly truncated: boolean;
+  /** Matched files left out because they are larger than `MAX_FILE_SIZE_BYTES`. */
+  readonly oversizedFiles: readonly string[];
   /** Diff run only: the changed files that belong to the target. Empty when the target is skipped. */
   readonly changedFiles?: readonly string[];
 }
 
-const DEFAULT_MAX_CHARS = 120_000;
+export const DEFAULT_MAX_CHARS = 120_000;
+
+interface ReadFiles {
+  readonly files: CodeFileContext[];
+  readonly oversizedFiles: string[];
+}
 
 async function readFileWithinLimits(
   absolutePath: string,
   relativePath: string
-): Promise<CodeFileContext | null> {
+): Promise<CodeFileContext | 'oversized' | null> {
   const stat = await fs.stat(absolutePath);
   if (!stat.isFile()) {
     return null;
   }
   if (stat.size > MAX_FILE_SIZE_BYTES) {
-    return null;
+    return 'oversized';
   }
 
   const content = await fs.readFile(absolutePath, 'utf-8');
@@ -75,23 +82,23 @@ export async function extractCodeContext(
   if (gitDiff?.staged || gitDiff?.diffRange) {
     const changedFiles = await changedFilesMatching(filePatterns, cwd, gitDiff);
     if (changedFiles.length === 0) {
-      return { ...buildExtractedContext([], 'diff', maxChars), changedFiles };
+      return {
+        ...buildExtractedContext({ files: [], oversizedFiles: [] }, 'diff', maxChars),
+        changedFiles,
+      };
     }
     // A staged run judges what is about to be committed. After `git add -p` the working tree
     // holds something else.
-    const files = gitDiff.staged
+    const read = gitDiff.staged
       ? await readStagedFiles(filePatterns, cwd)
       : await readMatchingFiles(filePatterns, cwd);
-    return { ...buildExtractedContext(files, 'diff', maxChars), changedFiles };
+    return { ...buildExtractedContext(read, 'diff', maxChars), changedFiles };
   }
 
   return buildExtractedContext(await readMatchingFiles(filePatterns, cwd), 'full', maxChars);
 }
 
-async function readMatchingFiles(
-  filePatterns: readonly string[],
-  cwd: string
-): Promise<CodeFileContext[]> {
+async function readMatchingFiles(filePatterns: readonly string[], cwd: string): Promise<ReadFiles> {
   const resolvedPaths = await resolveGlobPatterns(filePatterns, cwd);
   if (resolvedPaths.length > MAX_FILE_COUNT) {
     throw new PathSecurityError(
@@ -100,12 +107,15 @@ async function readMatchingFiles(
   }
 
   const files: CodeFileContext[] = [];
+  const oversizedFiles: string[] = [];
 
   for (const relPath of resolvedPaths) {
     try {
       const absolutePath = await assertInsideRoot(cwd, relPath);
       const fileContext = await readFileWithinLimits(absolutePath, relPath);
-      if (fileContext) {
+      if (fileContext === 'oversized') {
+        oversizedFiles.push(relPath);
+      } else if (fileContext) {
         files.push(fileContext);
       }
     } catch {
@@ -113,14 +123,11 @@ async function readMatchingFiles(
     }
   }
 
-  return files;
+  return { files, oversizedFiles };
 }
 
 /** The files of the target as they are staged in the git index. */
-async function readStagedFiles(
-  filePatterns: readonly string[],
-  cwd: string
-): Promise<CodeFileContext[]> {
+async function readStagedFiles(filePatterns: readonly string[], cwd: string): Promise<ReadFiles> {
   for (const pattern of filePatterns) {
     validateGlobPattern(pattern.startsWith('!') ? pattern.slice(1) : pattern);
   }
@@ -135,9 +142,11 @@ async function readStagedFiles(
   }
 
   const files: CodeFileContext[] = [];
+  const oversizedFiles: string[] = [];
   for (const relativePath of staged) {
     const content = await readStagedFile(relativePath, cwd, MAX_FILE_SIZE_BYTES);
     if (content === null) {
+      oversizedFiles.push(relativePath);
       continue;
     }
     files.push({
@@ -148,7 +157,7 @@ async function readStagedFiles(
       source: 'file',
     });
   }
-  return files;
+  return { files, oversizedFiles };
 }
 
 /**
@@ -165,7 +174,7 @@ async function changedFilesMatching(
 }
 
 function buildExtractedContext(
-  files: CodeFileContext[],
+  { files, oversizedFiles }: ReadFiles,
   mode: 'full' | 'diff',
   maxChars: number
 ): ExtractedCodeContext {
@@ -186,6 +195,7 @@ function buildExtractedContext(
     totalLines,
     mode,
     truncated,
+    oversizedFiles,
   };
 }
 
@@ -203,12 +213,15 @@ export async function extractCodeFromPaths(
   }
 
   const files: CodeFileContext[] = [];
+  const oversizedFiles: string[] = [];
 
   for (const relPath of filePaths) {
     try {
       const absolutePath = await assertInsideRoot(cwd, relPath);
       const fileContext = await readFileWithinLimits(absolutePath, relPath);
-      if (fileContext) {
+      if (fileContext === 'oversized') {
+        oversizedFiles.push(relPath);
+      } else if (fileContext) {
         files.push(fileContext);
       }
     } catch (error: unknown) {
@@ -219,5 +232,5 @@ export async function extractCodeFromPaths(
     }
   }
 
-  return buildExtractedContext(files, 'full', DEFAULT_MAX_CHARS);
+  return buildExtractedContext({ files, oversizedFiles }, 'full', DEFAULT_MAX_CHARS);
 }
