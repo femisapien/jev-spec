@@ -362,7 +362,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-Dry Run 会针对每个目标输出找到的规范章节与需求 ID、匹配到的代码文件、将要提出的 Rubric 以及预估成本。对于没有任何 Rubric 提及的需求 ID、未匹配到任何文件的 `codePaths`，以及超出大小预算的代码上下文，它会给出警告。配置有效时退出码为 `0`，存在问题时为 `2`；由于不做任何检查，它不会以 `1` 退出。
+Dry Run 会针对每个目标输出找到的规范章节与需求 ID、匹配到的代码文件、将要提出的 Rubric 以及预估成本。对于没有任何 Rubric 提及的需求 ID 以及未匹配到任何文件的 `codePaths`，它会给出警告。无法放进一次请求的代码会让它以 `2` 停止，与真实运行相同。配置有效时退出码为 `0`，存在问题时为 `2`；由于不做任何检查，它不会以 `1` 退出。
 
 未知命令、未知选项、缺少取值的选项以及不支持的 `--format` 取值都会被拒绝，并返回退出码 `2`。
 
@@ -378,6 +378,8 @@ npx jev-spec check --format markdown --output jev-spec-report.md
 # 机器可读的 JSON 输出（用于自定义流水线解析）
 npx jev-spec check --format json --output result.json
 ```
+
+即使运行以退出码 `2` 结束，`--format json` 与 `--format markdown` 仍会写出报告。报告包含 `"passed": false`、`error` 中的错误信息，以及 `uncheckedTargets` 中代码无法检查的每个目标及其 `reasons`（其他错误时为空列表）。错误同时输出到标准错误。terminal 格式只输出错误。
 
 `--output` 只接受项目根目录内的路径。若要写入 GitHub Actions 的 Step Summary（位于工作区之外），请改用标准输出重定向：
 

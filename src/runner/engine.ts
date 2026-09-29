@@ -20,6 +20,7 @@ import type {
   JevSpecConfig,
   OverallCheckResult,
   TargetCheckResult,
+  UncheckedTarget,
 } from '../types.js';
 import { assertRubric } from './assertion-runner.js';
 
@@ -84,31 +85,43 @@ function planWarnings(
   return warnings;
 }
 
+/** Stops a run because the code of the listed targets cannot be checked. */
+export class UncheckedTargetsError extends Error {
+  constructor(readonly targets: readonly UncheckedTarget[]) {
+    super(
+      `Code that does not fit in one request cannot be checked, so nothing was sent:\n${targets
+        .flatMap(({ targetName, reasons }) =>
+          reasons.map((reason) => `  - ${targetName}: ${reason}`)
+        )
+        .join('\n')}\nNarrow codePaths or split the target.`
+    );
+    this.name = 'UncheckedTargetsError';
+  }
+}
+
 /**
  * Stops the run when the code of a target does not fit in one request. A verdict on part of the
  * code is not a verdict on the target, so a file over the size limit or code over the character
  * budget means the target cannot be checked. Every problem of every target is listed at once.
  */
 function assertCodeFits(contexts: ReadonlyMap<string, ExtractedCodeContext>): void {
-  const problems: string[] = [];
+  const unchecked: UncheckedTarget[] = [];
   for (const [targetName, codeContext] of contexts) {
-    for (const file of codeContext.oversizedFiles) {
-      problems.push(
-        `${targetName}: ${file} is larger than the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MiB per file`
+    const reasons = codeContext.oversizedFiles.map(
+      (file) =>
+        `${file} is larger than the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MiB per file`
+    );
+    if (codeContext.truncated) {
+      reasons.push(
+        `the code is longer than the budget of ${DEFAULT_MAX_CHARS.toLocaleString('en-US')} characters per target`
       );
     }
-    if (codeContext.truncated) {
-      problems.push(
-        `${targetName}: the code is longer than the budget of ${DEFAULT_MAX_CHARS.toLocaleString('en-US')} characters per target`
-      );
+    if (reasons.length > 0) {
+      unchecked.push({ targetName, reasons });
     }
   }
-  if (problems.length > 0) {
-    throw new Error(
-      `Code that does not fit in one request cannot be checked, so nothing was sent:\n${problems
-        .map((problem) => `  - ${problem}`)
-        .join('\n')}\nNarrow codePaths or split the target.`
-    );
+  if (unchecked.length > 0) {
+    throw new UncheckedTargetsError(unchecked);
   }
 }
 

@@ -362,7 +362,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions, `codePaths` that match no file and a code context that exceeds the size budget. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked.
+A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions and `codePaths` that match no file. Code that does not fit in one request stops it with `2`, as it stops a real run. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked.
 
 Unknown commands, unknown options, missing option values and unsupported `--format` values are rejected with exit code `2`.
 
@@ -378,6 +378,8 @@ npx jev-spec check --format markdown --output jev-spec-report.md
 # Machine-readable JSON output (for custom reporting pipelines)
 npx jev-spec check --format json --output result.json
 ```
+
+When a run exits with `2`, `--format json` and `--format markdown` still write a report. It has `"passed": false`, the message in `error`, and in `uncheckedTargets` each target whose code could not be checked, with its `reasons` (an empty list for any other error). The error is printed to standard error as well. The terminal format prints the error only.
 
 `--output` only accepts paths inside the project root. To publish the report to the GitHub Actions step summary (which lives outside the workspace), redirect stdout instead:
 

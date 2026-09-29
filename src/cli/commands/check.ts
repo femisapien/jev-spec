@@ -1,8 +1,13 @@
 import * as fs from 'node:fs/promises';
 import { loadConfig } from '../../config.js';
 import { assertInsideRoot } from '../../context/path-security.js';
-import { runChecks } from '../../runner/engine.js';
-import { formatMarkdownReport, formatTerminalReport } from '../../runner/reporter.js';
+import { runChecks, UncheckedTargetsError } from '../../runner/engine.js';
+import {
+  formatMarkdownErrorReport,
+  formatMarkdownReport,
+  formatTerminalReport,
+} from '../../runner/reporter.js';
+import type { ErrorReport } from '../../types.js';
 
 export interface CheckCliOptions {
   readonly config?: string;
@@ -31,11 +36,47 @@ function resolveGitDiffOptions(options: CheckCliOptions) {
   return undefined;
 }
 
+async function writeReport(outputText: string, outputPath: string | undefined): Promise<void> {
+  if (outputPath) {
+    await fs.writeFile(outputPath, `${outputText}\n`, 'utf-8');
+  } else {
+    console.log(outputText);
+  }
+}
+
+/** The terminal format reports an error on stderr only; json and markdown also get a report. */
+async function reportError(
+  error: unknown,
+  format: CheckCliOptions['format'],
+  outputPath: string | undefined
+): Promise<void> {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`\n[jev-spec error] ${message}`);
+  if (format !== 'json' && format !== 'markdown') {
+    return;
+  }
+  const report: ErrorReport = {
+    passed: false,
+    error: message,
+    uncheckedTargets: error instanceof UncheckedTargetsError ? error.targets : [],
+  };
+  try {
+    await writeReport(
+      format === 'json' ? JSON.stringify(report, null, 2) : formatMarkdownErrorReport(report),
+      outputPath
+    );
+  } catch (writeError: unknown) {
+    const writeMessage = writeError instanceof Error ? writeError.message : String(writeError);
+    console.error(`[jev-spec error] The report could not be written: ${writeMessage}`);
+  }
+}
+
 export async function checkCommand(options: CheckCliOptions = {}): Promise<number> {
+  let outputPath: string | undefined;
   try {
     const cwd = options.cwd ?? process.cwd();
     // Validate the report destination up front so a bad path never costs an evaluation.
-    const outputPath = options.output ? await assertInsideRoot(cwd, options.output) : undefined;
+    outputPath = options.output ? await assertInsideRoot(cwd, options.output) : undefined;
 
     const loadedConfig = await loadConfig(options.config, cwd);
     const config = options.mock
@@ -60,16 +101,11 @@ export async function checkCommand(options: CheckCliOptions = {}): Promise<numbe
       outputText = formatTerminalReport(result);
     }
 
-    if (outputPath) {
-      await fs.writeFile(outputPath, `${outputText}\n`, 'utf-8');
-    } else {
-      console.log(outputText);
-    }
+    await writeReport(outputText, outputPath);
 
     return result.passed ? 0 : 1;
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`\n[jev-spec error] ${message}`);
+    await reportError(error, options.format, outputPath);
     // Every error is a 2. Exit code 1 is reserved for a violated assertion.
     return 2;
   }
