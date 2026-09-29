@@ -8,6 +8,12 @@ These requirements are as binding as the others, but no target of `jev-spec.conf
 
 When the evaluator returns no answer for a rubric, the check of that target fails.
 
+## Reading code
+
+### REQ-READ-03: The code is sent unchanged
+
+The code of a target reaches the evaluator exactly as it was read. Nothing in it is detected, masked, redacted or escaped, including a string that looks like a credential and text that looks like the closing tag around the code. A check that asks whether credentials are hard-coded judges the real code, never a masked copy.
+
 ## Git
 
 ### REQ-GIT-02: A revision range is validated before git is started

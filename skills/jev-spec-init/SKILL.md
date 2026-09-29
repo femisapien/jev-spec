@@ -36,7 +36,7 @@ If `jev-spec` is already a dependency, keep it and check the version: this skill
 
 1. Find the specification files. Do not assume `docs/specs/`: also look at `specs/`, `.kiro/specs/*/requirements.md`, `requirements/`, `docs/requirements/`.
 2. List every requirement ID (`REQ-…`, `AC-…`, or the repo's own scheme) with its one-line meaning.
-3. Propose **one target per specification file or domain**: `specPath` (a single file), `codePaths` (globs, tests excluded with `!**/*.test.ts`), and `specFilter.requirementPrefix` when one file holds several domains.
+3. Propose **one target per specification file or domain**: `specPath` (a single file), `codePaths` (globs, tests excluded with `!**/*.test.ts`), and `specFilter.requirementPrefix` when one file holds several domains. Every matched file is sent to the TypeSafe API as it is: jev-spec redacts nothing, on purpose, because a masked copy would let a rubric about hard-coded credentials pass. The built-in exclusions only cover `.env*`, `.git`, `*.pem`, `*.key` and SSH keys, by file name. Leave files that hold secrets (fixtures with real tokens, local config with credentials) out of `codePaths`, and tell the user about any hard-coded secret you notice instead of excluding the file that contains it.
 4. Show the mapping and let the user confirm it before writing anything.
 
 Keep targets small. Everything in a target is sent in one request (at most 500 files, 2 MiB per file, 120,000 characters of code). A target over a limit stops the run with exit code `2` before anything is sent (jev-spec 0.3.0 and earlier cut the code and still reported a verdict). The model's accuracy also drops as unrelated content grows. A target that covers the whole `src/` tree is a bug.
