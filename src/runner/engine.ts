@@ -4,7 +4,7 @@ import {
   type ExtractedCodeContext,
   extractCodeContext,
 } from '../context/code-extractor.js';
-import { MAX_FILE_SIZE_BYTES } from '../context/path-security.js';
+import { MAX_FILE_COUNT, MAX_FILE_SIZE_BYTES } from '../context/path-security.js';
 import type { GitDiffOptions } from '../context/types.js';
 import {
   createJevEvaluator,
@@ -101,14 +101,20 @@ export class UncheckedTargetsError extends Error {
 
 /**
  * Stops the run when the code of a target cannot be sent in full. A verdict on part of the code is
- * not a verdict on the target, so a file that cannot be read, a file over the size limit or code
- * over the character budget means the target cannot be checked. Every problem of every target is
+ * not a verdict on the target, so more files than the file count limit, a file that cannot be
+ * read, a file over the size limit or code over the character budget means the target cannot be
+ * checked. Every problem of every target is
  * listed at once.
  */
 function assertNoUncheckedTargets(contexts: ReadonlyMap<string, ExtractedCodeContext>): void {
   const unchecked: UncheckedTarget[] = [];
   for (const [targetName, codeContext] of contexts) {
     const reasons = [
+      ...(codeContext.matchedFileCount > MAX_FILE_COUNT
+        ? [
+            `matches ${codeContext.matchedFileCount} files, more than the limit of ${MAX_FILE_COUNT} per target`,
+          ]
+        : []),
       ...codeContext.unreadableFiles.map(({ file, code }) => `${file} cannot be read (${code})`),
       ...codeContext.oversizedFiles.map(
         (file) =>

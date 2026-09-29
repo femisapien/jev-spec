@@ -124,6 +124,62 @@ describe('code that does not fit in one request', () => {
     );
   });
 
+  const writeManyFiles = async (dir: string, count: number) => {
+    for (let i = 0; i < count; i++) {
+      await repo.write(`${dir}/f${i}.ts`, `export const a${i} = ${i};\n`);
+    }
+  };
+  const OVER_FILE_COUNT = /many: matches 501 files, more than the limit of 500 per target/;
+
+  it('REQ-RUN-02: stops a full run whose target matches more than 500 files, naming the target', async () => {
+    await writeManyFiles('many', 501);
+    const config: JevSpecConfig = {
+      targets: { fits: target(['small/**/*.ts']), many: target(['many/**/*.ts']) },
+    };
+
+    await assert.rejects(
+      () => runChecks(config, { cwd: repo.dir, evaluator }),
+      (error: Error) => OVER_FILE_COUNT.test(error.message) && !error.message.includes('fits:')
+    );
+    expect(evaluator.calls).toHaveLength(0);
+  });
+
+  it('REQ-RUN-02: stops a staged run whose target has more than 500 staged files', async () => {
+    await writeManyFiles('many', 501);
+    repo.git('add', 'many');
+    const config: JevSpecConfig = { targets: { many: target(['many/**/*.ts']) } };
+
+    await assert.rejects(
+      () => runChecks(config, { cwd: repo.dir, evaluator, gitDiff: { staged: true } }),
+      OVER_FILE_COUNT
+    );
+    expect(evaluator.calls).toHaveLength(0);
+  });
+
+  it('REQ-RUN-02: stops a dry run over the file count the same way', async () => {
+    await writeManyFiles('many', 501);
+    const config: JevSpecConfig = { targets: { many: target(['many/**/*.ts']) } };
+
+    await assert.rejects(() => runChecks(config, { cwd: repo.dir, dryRun: true }), OVER_FILE_COUNT);
+  });
+
+  it('REQ-EXIT-05: lists a target over the file count among the unchecked targets', async () => {
+    await writeManyFiles('many', 501);
+    await repo.write(
+      'jev-spec.config.mjs',
+      `export default { targets: ${JSON.stringify({ many: target(['many/**/*.ts']) })} };\n`
+    );
+
+    const { result, stdout } = await captureConsole(() =>
+      checkCommand({ cwd: repo.dir, format: 'json', dryRun: true })
+    );
+
+    expect(result).toBe(2);
+    expect(JSON.parse(stdout).uncheckedTargets).toEqual([
+      { targetName: 'many', reasons: ['matches 501 files, more than the limit of 500 per target'] },
+    ]);
+  });
+
   // Root reads a file whatever its mode, so there the file is readable and the test says nothing.
   const asRoot = process.getuid?.() === 0;
 

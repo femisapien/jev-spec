@@ -202,9 +202,13 @@ describe('Resource limits', () => {
     expect(MAX_FILE_COUNT).toBe(500);
   });
 
-  it('rejects extractCodeFromPaths when file count exceeds limit', async () => {
+  it('reads none of the files when their count exceeds the limit, and reports the count', async () => {
     const tooMany = Array.from({ length: MAX_FILE_COUNT + 1 }, (_, i) => `file${i}.ts`);
-    await assert.rejects(() => extractCodeFromPaths(tooMany, pkgRoot), PathSecurityError);
+    const context = await extractCodeFromPaths(tooMany, pkgRoot);
+
+    expect(context.matchedFileCount).toBe(501);
+    expect(context.files).toEqual([]);
+    expect(context.unreadableFiles).toEqual([]);
   });
 });
 

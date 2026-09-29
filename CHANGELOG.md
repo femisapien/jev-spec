@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A target that matches more than 500 files is now reported like a target over the other limits. The run still stopped with exit code `2`, but the error did not name the target (`File count 501 exceeds maximum of 500 per target`), and the JSON and Markdown reports listed no unchecked target. Now the target is in `uncheckedTargets` with the reason `matches 501 files, more than the limit of 500 per target`, the error names it, nothing is sent, and `--dry-run` stops the same way. `ExtractedCodeContext` has a new field, `matchedFileCount`, and `extractCodeContext` and `extractCodeFromPaths` no longer throw over the file count: they return the count and read none of the files, as they already did for files over the size limit.
+
 ## [0.4.0] - 2026-09-29
 
 A release about failing closed. A security assessment ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)) reproduced several ways in which a check could pass without the model having judged the code: a changed file the diff run did not see, a file that was too large or could not be read, code cut at the character budget, an answer that was not a number, a client option read by truthiness. Each of them now fails the assertion or stops the run with exit code `2`. One change is breaking: read the upgrade notes.

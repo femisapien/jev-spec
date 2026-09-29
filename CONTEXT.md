@@ -87,7 +87,7 @@ _Avoid_: Diff mode, staged mode
 Said of a target whose check a diff run did not perform because none of its code changed. It counts as neither passed nor failed.
 
 **Unchecked**:
-Said of a target whose check a run could not perform because its code cannot be sent in full: a file cannot be read, a file is over the size limit, or the code is over the character budget. Unlike a skipped target, it stops the run with exit code 2, and the report names it with every reason.
+Said of a target whose check a run could not perform because its code cannot be sent in full: it matches more files than the file count limit, a file cannot be read, a file is over the size limit, or the code is over the character budget. Unlike a skipped target, it stops the run with exit code 2, and the report names it with every reason.
 _Avoid_: Skipped (a diff run's choice), omitted, truncated
 
 **Dry run**:
