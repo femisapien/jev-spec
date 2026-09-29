@@ -10,8 +10,8 @@ jev-spec enforces a **gate**: it checks source code against Markdown specs and f
 
 - `npm run check`: everything CI runs, in order: Biome (lint and format check), type check, tests. Run it before every commit.
 - `npm run lint:fix`: applies Biome formatting and safe fixes. Do not format by hand.
-- `npm test`: builds first, then runs `node:test` against the **compiled** files in `dist-test/`. If a test seems to ignore your change, the build failed.
-- `npx bun test` must pass too. CI runs the suite on Node 22, Node 24 and Bun.
+- `npm test`: deletes `dist-test/`, builds, then runs `node:test` against the **compiled** files in `dist-test/`. If a test seems to ignore your change, the build failed.
+- `npx bun test` must pass too. It runs whatever is compiled in `dist-test/` and builds nothing, so run `npm run pretest` first, as CI does. CI runs the suite on Node 22, Node 24 and Bun.
 
 ## Rules that are easy to get wrong
 
