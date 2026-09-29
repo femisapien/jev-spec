@@ -1,9 +1,9 @@
 diff --git a/src/runner/engine.ts b/src/runner/engine.ts
 --- a/src/runner/engine.ts
 +++ b/src/runner/engine.ts
-@@ -110,15 +110,6 @@ function assertNoUncheckedTargets(contexts: ReadonlyMap<string, ExtractedCodeCon
-   for (const [targetName, codeContext] of contexts) {
-     const reasons = [
+@@ -116,15 +116,6 @@ function assertNoUncheckedTargets(contexts: ReadonlyMap<string, ExtractedCodeCon
+           ]
+         : []),
        ...codeContext.unreadableFiles.map(({ file, code }) => `${file} cannot be read (${code})`),
 -      ...codeContext.oversizedFiles.map(
 -        (file) =>

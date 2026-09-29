@@ -6,7 +6,6 @@ import {
   assertInsideRoot,
   MAX_FILE_COUNT,
   MAX_FILE_SIZE_BYTES,
-  PathSecurityError,
   validateGlobPattern,
 } from './path-security.js';
 import type { CodeExtractionOptions, GitDiffOptions } from './types.js';
@@ -31,6 +30,8 @@ export interface ExtractedCodeContext {
   readonly oversizedFiles: readonly string[];
   /** Matched files left out because reading them failed, with the error code. */
   readonly unreadableFiles: readonly UnreadableFile[];
+  /** Files the target matched. Above `MAX_FILE_COUNT`, none of them is read. */
+  readonly matchedFileCount: number;
   /** Diff run only: the changed files that belong to the target. Empty when the target is skipped. */
   readonly changedFiles?: readonly string[];
 }
@@ -46,6 +47,11 @@ interface ReadFiles {
   readonly files: CodeFileContext[];
   readonly oversizedFiles: string[];
   readonly unreadableFiles: UnreadableFile[];
+  readonly matchedFileCount: number;
+}
+
+function tooManyFiles(matchedFileCount: number): ReadFiles {
+  return { files: [], oversizedFiles: [], unreadableFiles: [], matchedFileCount };
 }
 
 async function readFileWithinLimits(
@@ -92,7 +98,7 @@ export async function extractCodeContext(
     if (changedFiles.length === 0) {
       return {
         ...buildExtractedContext(
-          { files: [], oversizedFiles: [], unreadableFiles: [] },
+          { files: [], oversizedFiles: [], unreadableFiles: [], matchedFileCount: 0 },
           'diff',
           maxChars
         ),
@@ -120,12 +126,15 @@ async function readMatchingFiles(filePatterns: readonly string[], cwd: string): 
  */
 async function readFiles(relativePaths: readonly string[], cwd: string): Promise<ReadFiles> {
   if (relativePaths.length > MAX_FILE_COUNT) {
-    throw new PathSecurityError(
-      `File count ${relativePaths.length} exceeds maximum of ${MAX_FILE_COUNT} per target`
-    );
+    return tooManyFiles(relativePaths.length);
   }
 
-  const read: ReadFiles = { files: [], oversizedFiles: [], unreadableFiles: [] };
+  const read: ReadFiles = {
+    files: [],
+    oversizedFiles: [],
+    unreadableFiles: [],
+    matchedFileCount: relativePaths.length,
+  };
   for (const relPath of relativePaths) {
     const absolutePath = await assertInsideRoot(cwd, relPath);
     try {
@@ -155,9 +164,7 @@ async function readStagedFiles(filePatterns: readonly string[], cwd: string): Pr
     matchesGlobPatterns(relativePath, filePatterns)
   );
   if (staged.length > MAX_FILE_COUNT) {
-    throw new PathSecurityError(
-      `File count ${staged.length} exceeds maximum of ${MAX_FILE_COUNT} per target`
-    );
+    return tooManyFiles(staged.length);
   }
 
   const files: CodeFileContext[] = [];
@@ -176,7 +183,7 @@ async function readStagedFiles(filePatterns: readonly string[], cwd: string): Pr
       source: 'file',
     });
   }
-  return { files, oversizedFiles, unreadableFiles: [] };
+  return { files, oversizedFiles, unreadableFiles: [], matchedFileCount: staged.length };
 }
 
 /**
@@ -193,7 +200,7 @@ async function changedFilesMatching(
 }
 
 function buildExtractedContext(
-  { files, oversizedFiles, unreadableFiles }: ReadFiles,
+  { files, oversizedFiles, unreadableFiles, matchedFileCount }: ReadFiles,
   mode: 'full' | 'diff',
   maxChars: number
 ): ExtractedCodeContext {
@@ -216,6 +223,7 @@ function buildExtractedContext(
     truncated,
     oversizedFiles,
     unreadableFiles,
+    matchedFileCount,
   };
 }
 
