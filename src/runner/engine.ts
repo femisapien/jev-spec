@@ -114,7 +114,7 @@ function assertCodeFits(contexts: ReadonlyMap<string, ExtractedCodeContext>): vo
 
 /** Dry-run warnings about the setup as a whole rather than about one target. */
 function setupWarnings(config: JevSpecConfig): string[] {
-  if (config.client?.mock) {
+  if (config.client?.mock === true) {
     return [];
   }
   const model = resolveModel(config.client);
@@ -140,7 +140,7 @@ export async function runChecks(
   const getEvaluator = (): JevEvaluator => (evaluator ??= createJevEvaluator(config.client));
   const isMock = options.evaluator
     ? options.evaluator instanceof MockJevEvaluator
-    : Boolean(config.client?.mock);
+    : config.client?.mock === true;
 
   const targetNames = options.target ? [options.target] : Object.keys(config.targets);
   const runWarnings = options.dryRun ? setupWarnings(config) : [];

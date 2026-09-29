@@ -103,7 +103,7 @@ export function resolveBaseUrl(config?: JevClientConfig): string {
     return DEFAULT_BASE_URL;
   }
 
-  if (!config?.allowCustomBaseUrl) {
+  if (config?.allowCustomBaseUrl !== true) {
     throw new JevSpecConfigurationError(
       `Custom baseUrl "${requested}" is blocked. Set client.allowCustomBaseUrl: true to opt in.`
     );
@@ -305,7 +305,7 @@ export class LiveJevEvaluator implements JevEvaluator {
  * Requires an API key unless mock mode is explicitly enabled.
  */
 export function createJevEvaluator(config?: JevClientConfig): JevEvaluator {
-  if (config?.mock) {
+  if (config?.mock === true) {
     return new MockJevEvaluator();
   }
 

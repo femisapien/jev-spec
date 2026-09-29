@@ -194,7 +194,7 @@ npx jev-spec check
 
 `jev-spec` configurations use the `defineConfig(...)` helper for full TypeScript type inference and auto-completion.
 
-Every configuration is validated before anything is sent to Jev. Assertion keys that match no rubric, options that do not fit the rubric type, unknown choice keys and out-of-range thresholds (for example `maxProbability: 15` instead of `0.15`) stop the run with exit code `2` instead of silently producing a check that can never fail. With `defineConfig(...)`, TypeScript reports the same mistakes in your editor.
+Every configuration is validated before anything is sent to Jev. Assertion keys that match no rubric, options that do not fit the rubric type, unknown choice keys and out-of-range thresholds (for example `maxProbability: 15` instead of `0.15`) and client options of the wrong type (for example `allowCustomBaseUrl: "false"`, a string) stop the run with exit code `2` instead of silently producing a check that can never fail. With `defineConfig(...)`, TypeScript reports the same mistakes in your editor.
 
 ### Core DSL Primitives
 
@@ -491,7 +491,7 @@ The push step is a full run on purpose: on `main`, `origin/main...HEAD` is an em
 | **Path Traversal & Root Jail** | Workspace paths are strictly validated using realpath resolution (`assertInsideRoot()`). Absolute paths outside cwd, `..` directory traversal, and symlinks escaping the repository root are rejected. |
 | **Git Revision Sanitization** | Arguments passed to `--diff` are validated against strict git revision patterns (`assertGitRevision()`). Rejects flags starting with `-` (blocking option injection like `--output`), terminates option parsing with `--end-of-options` before the revision range, and enforces a 15-second command timeout. |
 | **Prompt Boundaries (best effort)** | The specification and the code are sent in separate fields, inside delimiting tags (`<specification_context>` and `<untrusted_source_code>`), with a note that asks the model to ignore instructions embedded in them. This is a mitigation, not a guarantee: TypeSafe documents that content written to steer the model, including text that argues for its own classification, [can move the answer](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content). A comment that claims compliance is such text, so treat a pass on code you do not trust as weak evidence. |
-| **Base URL SSRF Protection** | By default, requests are routed exclusively to official TypeSafe AI endpoints (`https://api.typesafe.ai`). Custom API base URLs are blocked unless `allowCustomBaseUrl: true` is explicitly configured. |
+| **Base URL SSRF Protection** | By default, requests are routed exclusively to official TypeSafe AI endpoints (`https://api.typesafe.ai`). Custom API base URLs are blocked unless `allowCustomBaseUrl: true` is explicitly configured. Any value other than the booleans `true` and `false`, such as the string `"false"`, is a configuration error (exit code `2`), and `baseUrl` must be an http or https URL. |
 | **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per target, 2 MiB per file and 120,000 characters of code per target. A target over a limit stops the run with exit code `2` before anything is sent; its code is never cut or left out. |
 
 ---

@@ -170,6 +170,63 @@ describe('validateConfig', () => {
     expect(issues).toHaveLength(4);
   });
 
+  it('accepts client options of the right type', () => {
+    const client = {
+      apiKey: 'test-key',
+      baseUrl: 'http://127.0.0.1:8080',
+      allowCustomBaseUrl: true,
+      timeoutMs: 2500,
+      mock: false,
+      model: 'jev-1.13.0',
+    };
+    expect(issuesOf({ ...sampleConfig, client })).toEqual([]);
+  });
+
+  it('REQ-CONFIG-06: rejects every client option whose value is not of its type', () => {
+    const cases: ReadonlyArray<[Record<string, unknown>, string]> = [
+      [{ allowCustomBaseUrl: 'false' }, 'client.allowCustomBaseUrl'],
+      [{ allowCustomBaseUrl: 1 }, 'client.allowCustomBaseUrl'],
+      [{ mock: 'false' }, 'client.mock'],
+      [{ mock: 0 }, 'client.mock'],
+      [{ baseUrl: 42 }, 'client.baseUrl'],
+      [{ baseUrl: 'not a url' }, 'client.baseUrl'],
+      [{ baseUrl: 'file:///etc/passwd' }, 'client.baseUrl'],
+      [{ timeoutMs: '5000' }, 'client.timeoutMs'],
+      [{ timeoutMs: 0 }, 'client.timeoutMs'],
+      [{ timeoutMs: -1 }, 'client.timeoutMs'],
+      [{ timeoutMs: Number.POSITIVE_INFINITY }, 'client.timeoutMs'],
+      [{ timeoutMs: Number.NaN }, 'client.timeoutMs'],
+      [{ apiKey: 123 }, 'client.apiKey'],
+      [{ apiKey: null }, 'client.apiKey'],
+      [{ model: 7 }, 'client.model'],
+    ];
+    for (const [client, path] of cases) {
+      const issues = issuesOf({ ...sampleConfig, client } as unknown as JevSpecConfig);
+      expect(
+        `${JSON.stringify(client)}: ${issues.some((issue) => issue.startsWith(`${path}:`))}`
+      ).toBe(`${JSON.stringify(client)}: true`);
+    }
+  });
+
+  it('REQ-CONFIG-06: accepts an empty apiKey, which a missing CI secret produces', () => {
+    expect(issuesOf({ ...sampleConfig, client: { apiKey: '' } })).toEqual([]);
+    expect(issuesOf({ ...sampleConfig, client: { apiKey: '   ' } })).toEqual([]);
+  });
+
+  it('REQ-CONFIG-06: rejects a client that is not an object', () => {
+    const issues = issuesOf({ ...sampleConfig, client: 'mock' } as unknown as JevSpecConfig);
+    expect(issues.some((issue) => issue.startsWith('client:'))).toBe(true);
+  });
+
+  it('never repeats the value of an invalid API key in an issue', () => {
+    const issues = issuesOf({
+      ...sampleConfig,
+      client: { apiKey: ['sk-secret-value'] },
+    } as unknown as JevSpecConfig);
+    expect(issues.some((issue) => issue.startsWith('client.apiKey:'))).toBe(true);
+    expect(issues.join('\n').includes('sk-secret-value')).toBe(false);
+  });
+
   it('REQ-CONFIG-01: rejects a configuration without targets', () => {
     expect(issuesOf({ targets: {} })).toHaveLength(1);
   });

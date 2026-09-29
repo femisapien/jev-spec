@@ -194,7 +194,7 @@ npx jev-spec check
 
 `jev-spec` 配置文件借助 `defineConfig(...)` 辅助函数提供完整的 TypeScript 类型推导与智能补全。
 
-在向 Jev 发送任何内容之前，配置都会先经过校验。与任何 Rubric 都不匹配的断言键、与 Rubric 类型不符的选项、不存在的选项键，以及超出范围的阈值（例如把 `0.15` 误写成 `maxProbability: 15`），都会以退出码 `2` 终止运行，而不是悄悄生成一个永远不会失败的检查。使用 `defineConfig(...)` 时，TypeScript 会在编辑器中直接提示同样的错误。
+在向 Jev 发送任何内容之前，配置都会先经过校验。与任何 Rubric 都不匹配的断言键、与 Rubric 类型不符的选项、不存在的选项键，超出范围的阈值（例如把 `0.15` 误写成 `maxProbability: 15`），以及类型错误的客户端选项（例如字符串形式的 `allowCustomBaseUrl: "false"`），都会以退出码 `2` 终止运行，而不是悄悄生成一个永远不会失败的检查。使用 `defineConfig(...)` 时，TypeScript 会在编辑器中直接提示同样的错误。
 
 ### 核心 DSL 原语
 
@@ -491,7 +491,7 @@ push 步骤有意执行完整检查：在 `main` 分支上 `origin/main...HEAD` 
 | **路径遍历防御与 Root Jail** | 所有工作区路径均通过 realpath 规范化解析严格校验（`assertInsideRoot()`）。拒绝工作目录之外的绝对路径、`..` 目录遍历以及逃逸出仓库根目录的符号链接。 |
 | **Git Revision 参数净化** | 传入 `--diff` 的参数严格按照 Git 版本格式正则校验（`assertGitRevision()`）。拒绝任何以 `-` 开头的注入选项（防御类似 `--output` 的参数注入），在版本区间参数之前使用 `--end-of-options` 终止选项解析，并强制执行 15 秒命令超时。 |
 | **提示词边界（尽力而为）** | 规范文档与代码分别放在不同字段中，用边界标签（`<specification_context>` 与 `<untrusted_source_code>`）包裹，并附带一条说明，要求模型忽略其中嵌入的指令。这是缓解措施，而非保证：TypeSafe 明确指出，为引导模型而写的内容（包括为自身分类辩护的文字）[可能改变答案](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content)。声称“已满足需求”的注释正属于此类，因此对于不受信任的代码，请把“通过”仅视为较弱的证据。 |
-| **Base URL SSRF 防御** | 默认情况下，请求严格限定在官方 TypeSafe AI 域名（`https://api.typesafe.ai`）。除非显式设置 `allowCustomBaseUrl: true`，否则拒绝所有自定义 API 地址，杜绝内网探测与 SSRF 风险。 |
+| **Base URL SSRF 防御** | 默认情况下，请求严格限定在官方 TypeSafe AI 域名（`https://api.typesafe.ai`）。除非显式设置 `allowCustomBaseUrl: true`，否则拒绝所有自定义 API 地址，杜绝内网探测与 SSRF 风险。布尔值 `true` / `false` 以外的值（例如字符串 `"false"`）属于配置错误（退出码 `2`），`baseUrl` 必须是 http 或 https URL。 |
 | **资源耗尽保护** | 每个目标最多 500 个文件，单个文件最大 2 MiB，每个目标的代码最多 120,000 个字符，防止 DoS 攻击与内存耗尽。任何目标超出上限时，运行在发送任何内容之前以退出码 `2` 停止；代码不会被截断或遗漏。 |
 
 

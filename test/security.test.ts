@@ -15,7 +15,12 @@ import {
   PathSecurityError,
   validateGlobPattern,
 } from '../src/context/path-security.js';
-import { JevSpecConfigurationError, resolveBaseUrl } from '../src/evaluator/jev-evaluator.js';
+import {
+  createJevEvaluator,
+  JevSpecConfigurationError,
+  LiveJevEvaluator,
+  resolveBaseUrl,
+} from '../src/evaluator/jev-evaluator.js';
 import {
   buildSecureEvaluationState,
   wrapSourceCodeContext,
@@ -166,6 +171,23 @@ describe('Base URL SSRF protection (S-05)', () => {
       allowCustomBaseUrl: true,
     });
     expect(url).toBe('https://custom.example.com');
+  });
+
+  it('keeps a custom baseUrl blocked when allowCustomBaseUrl is the string "false"', () => {
+    assert.throws(
+      () =>
+        resolveBaseUrl({
+          baseUrl: 'https://evil.example.com',
+          allowCustomBaseUrl: 'false' as unknown as boolean,
+        }),
+      JevSpecConfigurationError
+    );
+  });
+
+  it('does not switch to the mock evaluator when mock is the string "false"', () => {
+    expect(
+      createJevEvaluator({ apiKey: 'test-key', mock: 'false' as unknown as boolean })
+    ).toBeInstanceOf(LiveJevEvaluator);
   });
 });
 

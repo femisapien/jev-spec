@@ -38,6 +38,12 @@ describe('Jev evaluator', () => {
     expect(resolveApiKey()).toBe('from-ai-key');
   });
 
+  it('falls back to the environment when client.apiKey is empty', () => {
+    process.env.TYPESAFE_AI_API_KEY = 'from-ai-key';
+    expect(resolveApiKey({ apiKey: '' })).toBe('from-ai-key');
+    expect(resolveApiKey({ apiKey: '   ' })).toBe('from-ai-key');
+  });
+
   it('uses mock evaluator only when mock flag is explicitly set', () => {
     delete process.env.TYPESAFE_AI_API_KEY;
     delete process.env.TYPESAFE_API_KEY;

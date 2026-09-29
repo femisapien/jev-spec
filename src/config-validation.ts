@@ -223,6 +223,64 @@ function validateTarget(path: string, target: unknown, issues: string[]): void {
   }
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const { protocol } = new URL(value);
+    return protocol === 'https:' || protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The client options are read by truthiness and handed to the SDK as they are, so a value of the
+ * wrong type changes what a run does: `allowCustomBaseUrl: "false"` would enable a custom
+ * endpoint and `mock: "false"` would replace the model with placeholders.
+ */
+function validateClient(client: unknown, issues: string[]): void {
+  if (client === undefined) {
+    return;
+  }
+  if (!isRecord(client)) {
+    issues.push('client: must be an object');
+    return;
+  }
+
+  for (const key of ['allowCustomBaseUrl', 'mock'] as const) {
+    if (client[key] !== undefined && typeof client[key] !== 'boolean') {
+      issues.push(`client.${key}: must be true or false, got ${JSON.stringify(client[key])}`);
+    }
+  }
+  // The value of an API key is never repeated in an issue. An empty string is allowed and
+  // read as unset, because GitHub Actions expands a missing secret to "".
+  if (client.apiKey !== undefined && typeof client.apiKey !== 'string') {
+    issues.push('client.apiKey: must be a string');
+  }
+  if (
+    client.baseUrl !== undefined &&
+    !(typeof client.baseUrl === 'string' && isHttpUrl(client.baseUrl.trim()))
+  ) {
+    issues.push(
+      `client.baseUrl: must be an http or https URL such as "https://api.typesafe.ai", got ${JSON.stringify(client.baseUrl)}`
+    );
+  }
+  if (
+    client.timeoutMs !== undefined &&
+    !(
+      typeof client.timeoutMs === 'number' &&
+      Number.isFinite(client.timeoutMs) &&
+      client.timeoutMs > 0
+    )
+  ) {
+    issues.push(
+      `client.timeoutMs: must be a positive number of milliseconds, got ${typeof client.timeoutMs === 'number' ? client.timeoutMs : JSON.stringify(client.timeoutMs)}`
+    );
+  }
+  if (client.model !== undefined && !isNonEmptyString(client.model)) {
+    issues.push('client.model: must be a non-empty string such as "jev-1.13.0"');
+  }
+}
+
 /**
  * Validates a loaded configuration and throws a ConfigValidationError listing every problem.
  *
@@ -231,13 +289,7 @@ function validateTarget(path: string, target: unknown, issues: string[]): void {
  */
 export function validateConfig(config: JevSpecConfig): void {
   const issues: string[] = [];
-  const client: unknown = (config as { client?: unknown } | null | undefined)?.client;
-
-  if (isRecord(client) && client.model !== undefined) {
-    if (typeof client.model !== 'string' || client.model.trim() === '') {
-      issues.push('client.model: must be a non-empty string such as "jev-1.13.0"');
-    }
-  }
+  validateClient((config as { client?: unknown } | null | undefined)?.client, issues);
 
   const targets: unknown = (config as { targets?: unknown } | null | undefined)?.targets;
 
