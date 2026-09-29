@@ -101,7 +101,7 @@ gh skill install nozomi-koborinai/jev-spec jev-spec-init
 gh skill install nozomi-koborinai/jev-spec jev-spec-fix
 ```
 
-そのうえでエージェントに「jev-spec をセットアップして」と依頼してください。`jev-spec-init` は仕様書とコードの対応付けを行い、要件ごとに焦点を絞った質問を 1 つずつ書き、オフラインで配線を検証して、カバーされていない要件を報告します。`jev-spec-fix` は失敗したチェックの原因を切り分け、何が検証され何が検証されていないかを報告します。
+そのうえでエージェントに「jev-spec をセットアップして」と依頼してください。`jev-spec-init` は仕様書とコードの対応付けを行い、要件ごとに焦点を絞った質問を 1 つずつ書き、オフラインで配線を検証して、カバーされていない要件を報告します。`jev-spec-fix` は失敗したチェックの原因を切り分け、何がチェックされ何がチェックされていないかを報告します。
 
 **手動セットアップ。** 以下の 3 ステップですぐに `jev-spec` を導入できます。
 
@@ -274,7 +274,7 @@ assertions: {
 ### ターゲット設定インターフェース
 
 ```typescript
-export interface TargetConfig {
+export interface TargetConfig<R extends Record<string, AnyRubric> = Record<string, AnyRubric>> {
   /** ターゲットの概要説明（任意） */
   readonly description?: string;
 
@@ -292,7 +292,7 @@ export interface TargetConfig {
   };
 
   /** 宣言された Jev 評価ルーブリック */
-  readonly rubrics: Record<string, AnyRubric>;
+  readonly rubrics: R;
 
   /** Jev の評価結果と照合するアサーション */
   readonly assertions: AssertionMap<R>;
@@ -344,7 +344,7 @@ bunx jev-spec check --target auth
 # ステージされた変更が触れたターゲットをチェック（pre-commit フックに最適）
 bunx jev-spec check --staged
 
-# ブランチ範囲の差分が触れたターゲットをチェック（PR の CI に最適）
+# ブランチ範囲の差分が触れたターゲットをチェック（ローカルでの実行や、フルチェックには大きすぎるリポジトリ向け）
 bunx jev-spec check --diff origin/main...HEAD
 ```
 
@@ -353,7 +353,7 @@ bunx jev-spec check --diff origin/main...HEAD
 #### ドライラン・Mock モード・ヘルプ・バージョン
 
 ```bash
-# セットアップの検証: 設定、仕様のパース、ファイルのマッチング。何も評価せず、API キーも不要
+# セットアップの検証: 設定、仕様のパース、ファイルのマッチング。何も評価せず、API キーも不要。設定ファイルは実行される
 npx jev-spec check --dry-run
 
 # オフラインのモック評価器（結果はプレースホルダで、すべてのレポートに MOCK MODE と表示）
@@ -364,7 +364,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-ドライランは、ターゲットごとに、見つかった仕様のセクションと要件 ID、マッチしたコードファイル、問い合わせる予定のルーブリック、見積もりコストを表示します。どのルーブリックにも言及されていない要件 ID と、どのファイルにも一致しない `codePaths` については警告します。1 回のリクエストに収まらないコードは、実際の実行と同じく終了コード `2` で停止させます。セットアップが正しければ終了コード `0`、不備があれば `2` で終了します。何もチェックしないため、`1` で終了することはありません。
+ドライランは、ターゲットごとに、見つかった仕様のセクションと要件 ID、マッチしたコードファイル、問い合わせる予定のルーブリック、見積もりコストを表示します。どのルーブリックにも言及されていない要件 ID と、どのファイルにも一致しない `codePaths` については警告します。1 回のリクエストに収まらないコードは、実際の実行と同じく終了コード `2` で停止させます。セットアップが正しければ終了コード `0`、不備があれば `2` で終了します。何もチェックしないため、`1` で終了することはありません。静的な検査ではありません。設定ファイルは TypeScript または JavaScript で、ドライランも他の実行と同じくそれを実行します（後述の CI 脅威モデルを参照）。
 
 不明なコマンド、不明なオプション、値の欠けたオプション、未対応の `--format` 値は、終了コード `2` で拒否されます。
 
@@ -399,7 +399,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ## デュアルランタイム対応マトリクス
 
-`jev-spec` は、モダンな **Node.js** および **Bun** の両方に対してファーストクラスのデュアルランタイムサポートを提供します。すべてのプルリクエストは、自動 CI によりサポート対象の全バージョンで両ランタイムに対して検証されています。
+`jev-spec` は、モダンな **Node.js** および **Bun** の両方に対してファーストクラスのデュアルランタイムサポートを提供します。すべてのプルリクエストは、自動 CI により Node.js 22、Node.js 24、Bun の最新リリースでテストされています。
 
 | ランタイム | サポートバージョン | ステータス | 最適なユースケース |
 | :--- | :--- | :--- | :--- |
@@ -409,7 +409,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 ### Pre-Commit フックにはどちらのランタイムを使うか
 
-どちらでも構いません。メンテナのノート PC で、このリポジトリに対して実測した値です（Node 22.23、Bun 1.4）。CLI の起動は Node で約 0.1 秒、Bun で約 0.05 秒、8 ターゲットすべてのドライランは 0.15 秒と 0.08 秒でした。実 API での 1 ターゲットのチェックは 0.3〜0.9 秒かかるので、フックの所要時間を決めるのはランタイムではなく、モデルへのリクエストです。
+どちらでも構いません。メンテナのノート PC で、このリポジトリに対して実測した値です（Node 22.23、Bun 1.4）。CLI の起動は Node で約 0.1 秒、Bun で約 0.05 秒、0.3.0 時点のこのリポジトリのドライランは 0.15 秒と 0.08 秒でした。実 API での 1 ターゲットのチェックは 0.3〜0.9 秒かかるので、フックの所要時間を決めるのはランタイムではなく、モデルへのリクエストです。
 
 - **フックにかかるもの**: `jev-spec check --staged` は、コミットが触れたターゲットだけを、それぞれ 1 リクエストでチェックします。どのターゲットにも触れないコミットは何も送信せず、API キーも要りません。
 - **`bunx` は既定で Node を使います**: CLI には `#!/usr/bin/env node` の shebang があり、`bunx jev-spec` はそれに従います。Bun で動かすには `bunx --bun jev-spec` を使ってください。
@@ -424,11 +424,11 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 ### CI 脅威モデル：Fork PR とシークレットの取り扱い
 
 > [!WARNING]
-> パブリックリポジトリの外部プルリクエスト（`pull_request` イベント）に対して、`TYPESAFE_AI_API_KEY` を絶対に公開しないでください！
+> レビューしていないコードに `TYPESAFE_AI_API_KEY` を絶対に公開しないでください！GitHub はフォークからの `pull_request` の実行にシークレットを渡しませんが、`pull_request_target` の実行と、同じリポジトリのブランチからのプルリクエストには渡します。
 
-1. **信頼できないコードのリスク**: パブリックリポジトリでは、PR によって `jev-spec.config.ts`、仕様書、コードが改ざんされる可能性があります。機密性の高い認証情報へのアクセス権を持った状態で信頼できないコードを実行すると、シークレット漏洩の攻撃対象領域となります。
+1. **信頼できないコードのリスク**: PR によって `jev-spec.config.ts`、仕様書、コードが改ざんされる可能性があります。設定ファイルは TypeScript または JavaScript で、jev-spec は読み込むときにそれを実行します。`--dry-run` を含むすべての実行でそうです。機密性の高い認証情報へのアクセス権を持った状態で信頼できないコードを実行すると、シークレット漏洩の攻撃対象領域となります。
 2. **推奨される多層防御パターン**:
-   - **Fork PR にはドライランを使用**: PR チェックではドライラン（`jev-spec check --dry-run`）を使用し、API 認証情報を一切公開せずに設定構造、仕様パース、glob パターンの一致を検証します。
+   - **Fork PR にはドライランを使用**: フォークからの PR はドライラン（`jev-spec check --dry-run`）で実行します。ドライランは API キーなしで設定、仕様のパース、glob の一致を検証しますが、PR の設定ファイルは実行するので、その PR のコードも動きます。シークレットがなく権限が読み取り専用（`permissions: contents: read`）のジョブで実行し、`pull_request_target` では決して実行しないでください。
    - **Environment Protection（環境保護ルール）**: 外部 PR で実 API のチェックを行う場合は、GitHub Actions の Environment Approvals を使用し、メンテナーが差分を確認・承認した後にのみシークレットが利用できるようにします。
    - **main ブランチでのチェック**: `main` への push や信頼できる内部リリースのブランチに対して、実 API のチェックを実行します。
 
@@ -452,8 +452,6 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -464,14 +462,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run jev-spec (Internal Pull Request / Changed Targets)
+      - name: Run jev-spec (Same-Repository Pull Request / Full Run)
         if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         env:
           TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
-        run: |
-          npx jev-spec check \
-            --diff origin/main...HEAD \
-            --format markdown >> "$GITHUB_STEP_SUMMARY"
+        run: npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run jev-spec (Push to Main / Full Run)
         if: github.event_name == 'push'
@@ -484,16 +479,16 @@ jobs:
         run: npx jev-spec check --dry-run
 ```
 
-push 時のステップは、意図的にすべてをチェックします。`main` 上では `origin/main...HEAD` が空の範囲になり、すべてのターゲットがスキップされてしまうためです。
+実 API を使う 2 つのステップは、意図的にフルチェックです。差分チェックはコードが変わっていないターゲットをすべてスキップするので、仕様書だけを変えた PR は何もチェックされずに通ってしまいます。また `main` 上では `origin/main...HEAD` が空の範囲になります。このリポジトリ自身のワークフロー（`.github/workflows/jev-spec.yml`）は、実 API のチェックを `main` への push でだけ行い、すべての PR ではドライランを行います。そのジョブは報告のみで、メンテナが 1 人だからです。
 
 ### 組み込みセキュリティ防御機能
 
-`jev-spec` は、開発マシンと CI ランナーを保護するための包括的な多層防御セキュリティ機能（Hardening S-01〜S-05）を実装しています。
+`jev-spec` は、開発マシンと CI ランナーを保護するための防御的なセキュリティ機能を実装しています。
 
 | セキュリティ対策 | 実装の内容 |
 | :--- | :--- |
-| **パストラバーサル & Root Jail** | ワークスペースパスは realpath 解決により厳密に検証されます（`assertInsideRoot()`）。カレント作業ディレクトリ外の絶対パス、`..` によるディレクトライバーサル、およびリポジトリルートを脱出するシンボリックリンクは拒否されます。 |
-| **Git リビジョンのサニタイズ** | `--diff` に渡される引数は、厳格な Git リビジョン正規表現パターンで検証されます（`assertGitRevision()`）。`-` で始まるフラグ（`--output` などのオプションインジェクション）を拒否し、リビジョン範囲の直前に `--end-of-options` を置いてオプション解析を打ち切り、15 秒のコマンドタイムアウトを強制します。 |
+| **パストラバーサル & Root Jail** | 設定とコマンドラインから来るパスは realpath 解決により厳密に検証されます（`assertInsideRoot()`）。カレント作業ディレクトリ外の絶対パス、`..` によるディレクトリトラバーサル、およびリポジトリルートの外へ解決されるシンボリックリンクは拒否されます。glob のマッチングはシンボリックリンクをたどらず、実パスがリポジトリルートの外にあるファイルはマッチから外されます。 |
+| **Git リビジョンのサニタイズ** | git はシェルを介さず `execFile` で起動し、引数はリストとして渡します。`--diff` に渡される引数は、厳格な Git リビジョン正規表現パターンで検証されます（`assertGitRevision()`）。`-` で始まるフラグ（`--output` などのオプションインジェクション）を拒否し、リビジョン範囲の直前に `--end-of-options` を置いてオプション解析を打ち切り、15 秒のコマンドタイムアウトを強制します。 |
 | **プロンプト境界（ベストエフォート）** | 仕様書とコードは別々のフィールドに入れ、区切りタグ（`<specification_context>` および `<untrusted_source_code>`）で囲み、埋め込まれた指示を無視するようモデルに求める注記を添えて送ります。これは緩和策であり、保証ではありません。TypeSafe は、モデルを誘導するために書かれた内容（自分自身の分類を主張する文を含む）が[答えを動かしうる](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content)と明記しています。「要件を満たしている」と主張するコメントはまさにそれに当たるので、信頼できないコードに対する合格は、弱い証拠として扱ってください。 タグはエスケープされません。`</untrusted_source_code>` を含むコードは、そのブロックを途中で閉じることができます。 |
 | **Base URL SSRF 防御** | デフォルトでは、リクエストは公式の TypeSafe AI エンドポイント（`https://api.typesafe.ai`）にのみルーティングされます。`allowCustomBaseUrl: true` が明示的に設定されていない限り、カスタム API ベース URL はブロックされます。真偽値 `true` / `false` 以外の値（文字列の `"false"` など）は設定エラー（終了コード `2`）となり、`baseUrl` は http または https の URL でなければなりません。 |
 | **リソース制限** | ターゲットあたり最大 500 ファイル、1 ファイル 2 MiB、ターゲットあたり 120,000 文字のコードという上限を強制し、DoS や過度なメモリ消費を防止します。上限を超えたターゲットや、読み取れないコードファイルを持つターゲットがあると、何も送信せずに実行が終了コード `2` で止まります。コードが切り詰められたり省かれたりすることはありません。 |
