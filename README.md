@@ -66,7 +66,7 @@ You can put these questions to a general-purpose LLM in a prompt. Then you parse
 ### Know the limits
 
 - **A probability is not a proof.** jev-spec tells you that code has probably drifted from a requirement. It complements tests and review and replaces neither. Tune the thresholds on your own code before you trust them.
-- **Keep targets small.** A target is sent in one request. Make it one domain, not the whole `src/` tree: Jev gets less accurate as unrelated content grows (see its [known limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13)).
+- **Keep targets small.** A target is sent in one request, and a target that does not fit (a file over 2 MiB, or more than 120,000 characters of code) stops the run with exit code `2` instead of being cut. Make it one domain, not the whole `src/` tree: Jev gets less accurate as unrelated content grows (see its [known limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13)).
 - **Ask narrow, literal questions.** One behaviour per question, asked directly ("Is a token rejected when …?"), and say which part of the code you mean when two are alike. A requirement restated as a claim, multi-part questions, counting and stacked negations are answered less reliably.
 - **English works best.** Jev's [primary training language is English](https://docs.typesafe.ai/models#language-support). Other languages, CJK scripts included, are accepted but less accurate, and TypeSafe advises testing on your own content first. With specs in another language, tune the thresholds on your own documents before you gate on them.
 - **Markdown tables in a specification are not sent to the model yet.** Restate the rows in the question, or write the requirement as a list.
@@ -389,7 +389,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 - `0`: All targets and assertions passed.
 - `1`: A check failed (one or more assertions violated).
-- `2`: Configuration or runtime error (missing file, invalid argument, missing API key).
+- `2`: Configuration or runtime error (missing file, invalid argument, missing API key, code that does not fit in one request).
 
 ---
 
@@ -492,7 +492,7 @@ The push step is a full run on purpose: on `main`, `origin/main...HEAD` is an em
 | **Git Revision Sanitization** | Arguments passed to `--diff` are validated against strict git revision patterns (`assertGitRevision()`). Rejects flags starting with `-` (blocking option injection like `--output`), terminates option parsing with `--end-of-options` before the revision range, and enforces a 15-second command timeout. |
 | **Prompt Boundaries (best effort)** | The specification and the code are sent in separate fields, inside delimiting tags (`<specification_context>` and `<untrusted_source_code>`), with a note that asks the model to ignore instructions embedded in them. This is a mitigation, not a guarantee: TypeSafe documents that content written to steer the model, including text that argues for its own classification, [can move the answer](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content). A comment that claims compliance is such text, so treat a pass on code you do not trust as weak evidence. |
 | **Base URL SSRF Protection** | By default, requests are routed exclusively to official TypeSafe AI endpoints (`https://api.typesafe.ai`). Custom API base URLs are blocked unless `allowCustomBaseUrl: true` is explicitly configured. |
-| **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per scan, 2MB file size cap, and bounded character truncation per evaluation prompt. |
+| **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per target, 2 MiB per file and 120,000 characters of code per target. A target over a limit stops the run with exit code `2` before anything is sent; its code is never cut or left out. |
 
 ---
 

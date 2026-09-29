@@ -38,7 +38,7 @@ Add `--target <name>` to re-run a single target while iterating (`--zone <name>`
 
 | Exit code | Meaning | Go to |
 | :-- | :-- | :-- |
-| `2` | Not a verification result. Invalid config, `specFilter` that matches nothing, missing spec file, missing API key, `--output` outside the repo. The message names the config path or the cause. | Fix the setup, re-run |
+| `2` | Not a verification result. Invalid config, `specFilter` that matches nothing, missing spec file, missing API key, `--output` outside the repo, a target whose code does not fit in one request (a file over 2 MiB, or more than 120,000 characters of code). The message names the config path or the cause; for code that does not fit, split the target or narrow its `codePaths` (jev-spec 0.3.0 and earlier cut or left out that code and still reported a verdict). | Fix the setup, re-run |
 | `1` | At least one assertion was breached | Step 2 |
 | `0` | Everything asserted passed | Step 4 |
 

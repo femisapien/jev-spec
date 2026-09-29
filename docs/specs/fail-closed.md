@@ -30,6 +30,10 @@ Validation collects every problem it finds and reports them together, each with 
 
 A run validates the configuration before it reads a spec, reads code or creates the client of the API.
 
+### REQ-RUN-02: Code that does not fit in one request stops the run
+
+A run reads the code of every target it checks before it sends anything. When a code file of such a target is larger than the size limit, or the code of such a target is longer than the character budget, the run stops with an error that names each target and file concerned, and no target is evaluated. A dry run stops the same way. A target that a diff run skips is not concerned.
+
 ## Answers
 
 ### REQ-ANSWER-01: A value that is not a finite number fails

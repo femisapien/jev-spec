@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Breaking changes
+
+- **Code that does not fit in one request now stops the run with exit code `2`.** Until now a matched file over 2 MiB was left out without a word, and code past 120,000 characters per target was cut. The model then judged what was left, and the check could pass on code it never saw ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)). A run now reads every target it checks before sending anything. If a target has a file over the limit or code over the budget, the run sends nothing and exits with `2`. The error names each such target and file. `--dry-run` stops the same way, and replaces its old warning that the code "would be cut". A target that a diff run skips is not affected. **A run that passed before can now stop.** To fix it, split the target or narrow its `codePaths` until each target fits, and run `jev-spec check --dry-run` to confirm. `ExtractedCodeContext` has a new field, `oversizedFiles`, that lists the files left out.
+
 ### Fixed
 
 - `jev-spec --help` still described `--staged` as "Check staged git changes only" and `--diff` as "Check a git diff range", which is what they did before 0.3.0. Both lines now say what a diff run does: it checks only the targets that the change touches, each in full. The code comments in the READMEs say the same, and the Japanese, Chinese and Korean READMEs head the section "diff run" instead of "check only the changes", which contradicted the sentence below it.
