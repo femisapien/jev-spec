@@ -243,6 +243,8 @@ assertions: {
   - `blockedChoices?: readonly T[]`: 禁止する選択肢キーの配列（選択された場合に失敗）。
   - `minConfidence?: number`: 選択された選択肢に要求される最小信頼度スコア（`[0, 1]`）。
 
+  ルーブリックのキーにない選択肢を返した回答は、これらのどのアサーションでも失敗します。
+
 #### score(description, levels): ScoreRubric
 
 **score** ルーブリックは、2〜10 レベルの順序尺度に対して評価を行います。連続的なスコア値、各レベルの確率、および信頼度を返します。

@@ -48,6 +48,14 @@ When the probability or the confidence of an answer is not a number from 0 to 1,
 
 The live evaluator takes the probability, the confidence and the score of an answer only when the API returned them as numbers. Any other value, such as `null` or the string `"0.99"`, is replaced by NaN, which fails its assertion, and is never converted into a number.
 
+### REQ-ANSWER-04: A choice that is not an option of its rubric fails
+
+When the choice of an answer is not one of the options of its rubric, the assertion on that answer fails, whatever it asks: allowed choices, blocked choices or a minimum confidence.
+
+### REQ-API-02: A choice the API did not return as a string is not converted
+
+The live evaluator takes the choice of an answer as the API returned it. A value that is not a string, such as the number `1` or `null`, is never converted into a label, so it cannot match an option or a blocked or allowed choice by accident.
+
 ### REQ-ANSWER-03: A rubric without an assertion is informational
 
 A rubric that has no assertion does not affect whether the check passes.

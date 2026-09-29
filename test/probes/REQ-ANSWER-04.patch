@@ -1,0 +1,12 @@
+diff --git a/src/runner/assertion-runner.ts b/src/runner/assertion-runner.ts
+--- a/src/runner/assertion-runner.ts
++++ b/src/runner/assertion-runner.ts
+@@ -110,7 +110,7 @@ function assertChoice(
+   // A label that is not an option clears every blockedChoices list, so it fails first. A rubric of
+   // another type has no options, so its choice fails.
+   const options = rubric.type === 'choice' ? Object.keys(rubric.options) : [];
+-  if (!options.includes(result.choice)) {
++  if (assertion.allowedChoices && !options.includes(result.choice)) {
+     return {
+       rubricName,
+       rubric,

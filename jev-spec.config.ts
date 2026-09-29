@@ -124,10 +124,14 @@ export default defineConfig({
         'REQ-ANSWER-03': noul(
           'When a rubric has no assertion, is its evaluation recorded as passed?'
         ),
+        'REQ-ANSWER-04': noul(
+          'Does a choice assertion fail when the selected choice is not one of the options of the rubric, even when the assertion only lists blocked choices?'
+        ),
       },
       assertions: {
         'REQ-ANSWER-01': MET,
         'REQ-ANSWER-03': MET,
+        'REQ-ANSWER-04': MET,
       },
     },
 
@@ -140,9 +144,13 @@ export default defineConfig({
         'REQ-API-01': noul(
           'When the live evaluator maps the answers of the API, does it use the probability, the confidence and the score only when their type is number, without converting a value such as null or a string into a number?'
         ),
+        'REQ-API-02': noul(
+          'When the live evaluator maps a choice answer of the API, does it use the choice without converting it into a string?'
+        ),
       },
       assertions: {
         'REQ-API-01': MET,
+        'REQ-API-02': MET,
       },
     },
 

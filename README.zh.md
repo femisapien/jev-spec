@@ -243,6 +243,8 @@ assertions: {
   - `blockedChoices?: readonly T[]`：禁止选中的选项 Key 数组（若被选中则检查失败）。
   - `minConfidence?: number`：选中该选项所需的最低置信度阈值（`[0, 1]`）。
 
+  若回答选中的不是该 Rubric 的任何 Key，上述每种断言都会失败。
+
 #### score(description, levels): ScoreRubric
 
 **score** 准则用于在 2 到 10 个有序梯级上进行连续分值评估。返回连续分值、各梯级分布概率以及置信度指标。

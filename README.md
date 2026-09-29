@@ -243,6 +243,8 @@ assertions: {
   - `blockedChoices?: readonly T[]`: Forbidden choice keys (fails if selected).
   - `minConfidence?: number`: Minimum required confidence score for the selected choice (`[0, 1]`).
 
+  An answer whose choice is not one of the rubric's keys fails every one of these assertions.
+
 #### score(description, levels): ScoreRubric
 
 A **score** rubric maps evaluation onto an ordinal scale between 2 and 10 levels. Returns a continuous score, level probabilities, and confidence.
