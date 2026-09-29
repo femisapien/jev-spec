@@ -14,7 +14,7 @@ When at least one assertion of a checked target is violated, the check command e
 
 ### REQ-EXIT-03: Every error exits with 2
 
-When a run cannot be carried out, the command prints the error and exits with code 2. This holds for a usage error, an invalid configuration, a missing file, a missing API key, code that does not fit in one request and an unexpected internal error alike.
+When a run cannot be carried out, the command prints the error and exits with code 2. This holds for a usage error, an invalid configuration, a missing file, a missing API key, code that does not fit in one request, a code file that cannot be read and an unexpected internal error alike.
 
 ### REQ-EXIT-04: Help and version exit with 0 without a configuration
 

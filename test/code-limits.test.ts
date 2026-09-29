@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { chmod, readFile, rm } from 'node:fs/promises';
 import * as path from 'node:path';
 import { after, before, beforeEach, describe, test as it } from 'node:test';
 import { checkCommand } from '../src/cli/commands/check.js';
+import { extractCodeFromPaths } from '../src/context/code-extractor.js';
 import type {
   EvaluationInput,
   EvaluationOutput,
@@ -123,6 +124,39 @@ describe('code that does not fit in one request', () => {
     );
   });
 
+  // Root reads a file whatever its mode, so there the file is readable and the test says nothing.
+  const asRoot = process.getuid?.() === 0;
+
+  it('REQ-RUN-03: stops a full run when a matched file cannot be read, naming the file', {
+    skip: asRoot,
+  }, async () => {
+    await repo.write('big/a.ts', 'export const a = 1;\n');
+    await repo.write('big/secret.ts', 'export const b = 2;\n');
+    await chmod(path.join(repo.dir, 'big/secret.ts'), 0o000);
+    const config: JevSpecConfig = { targets: { core: target(['big/**/*.ts']) } };
+
+    try {
+      await assert.rejects(
+        () => runChecks(config, { cwd: repo.dir, evaluator }),
+        /core: big\/secret\.ts cannot be read \(EACCES\)/
+      );
+      await assert.rejects(
+        () => runChecks(config, { cwd: repo.dir, dryRun: true }),
+        /core: big\/secret\.ts cannot be read/
+      );
+      expect(evaluator.calls).toHaveLength(0);
+    } finally {
+      await chmod(path.join(repo.dir, 'big/secret.ts'), 0o644);
+    }
+  });
+
+  it('REQ-RUN-03: records a file that is gone by the time it is read', async () => {
+    const context = await extractCodeFromPaths(['small/a.ts', 'small/gone.ts'], repo.dir);
+
+    expect(context.files.map((file) => file.relativePath)).toEqual(['small/a.ts']);
+    expect(context.unreadableFiles).toEqual([{ file: 'small/gone.ts', code: 'ENOENT' }]);
+  });
+
   it('does not stop a diff run for an oversized file in a target that is skipped', async () => {
     await repo.write('big/huge.ts', OVER_2_MIB);
     await repo.write('NOTES.md', 'unrelated\n');
@@ -197,8 +231,8 @@ describe('the report of a run that code that does not fit stops', () => {
         reasons: ['the code is longer than the budget of 120,000 characters per target'],
       },
     ]);
-    expect(String(report.error)).toContain('Code that does not fit in one request');
-    expect(stderr).toContain('[jev-spec error] Code that does not fit in one request');
+    expect(String(report.error)).toContain('Code that cannot be sent in full');
+    expect(stderr).toContain('[jev-spec error] Code that cannot be sent in full');
   });
 
   it('REQ-EXIT-05: writes the json report to --output', async () => {
@@ -224,6 +258,26 @@ describe('the report of a run that code that does not fit stops', () => {
     expect(stdout).toContain('big/huge.ts is larger than the limit of 2 MiB per file');
     expect(stdout).toContain('`long`');
     expect(stdout.includes('`fits`')).toBe(false);
+  });
+
+  it('REQ-RUN-03: names an unreadable file among the reasons of its target', {
+    skip: process.getuid?.() === 0,
+  }, async () => {
+    await repo.write('small/locked.ts', 'export const b = 2;\n');
+    await chmod(path.join(repo.dir, 'small/locked.ts'), 0o000);
+    try {
+      const { result, stdout } = await captureConsole(() =>
+        checkCommand({ cwd: repo.dir, format: 'json', target: 'fits' })
+      );
+
+      expect(result).toBe(2);
+      expect(JSON.parse(stdout).uncheckedTargets).toEqual([
+        { targetName: 'fits', reasons: ['small/locked.ts cannot be read (EACCES)'] },
+      ]);
+    } finally {
+      await chmod(path.join(repo.dir, 'small/locked.ts'), 0o644);
+      await rm(path.join(repo.dir, 'small/locked.ts'));
+    }
   });
 
   it('keeps the terminal format to the error alone', async () => {

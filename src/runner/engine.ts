@@ -89,33 +89,37 @@ function planWarnings(
 export class UncheckedTargetsError extends Error {
   constructor(readonly targets: readonly UncheckedTarget[]) {
     super(
-      `Code that does not fit in one request cannot be checked, so nothing was sent:\n${targets
+      `Code that cannot be sent in full cannot be checked, so nothing was sent:\n${targets
         .flatMap(({ targetName, reasons }) =>
           reasons.map((reason) => `  - ${targetName}: ${reason}`)
         )
-        .join('\n')}\nNarrow codePaths or split the target.`
+        .join('\n')}\nMake every file readable, narrow codePaths or split the target.`
     );
     this.name = 'UncheckedTargetsError';
   }
 }
 
 /**
- * Stops the run when the code of a target does not fit in one request. A verdict on part of the
- * code is not a verdict on the target, so a file over the size limit or code over the character
- * budget means the target cannot be checked. Every problem of every target is listed at once.
+ * Stops the run when the code of a target cannot be sent in full. A verdict on part of the code is
+ * not a verdict on the target, so a file that cannot be read, a file over the size limit or code
+ * over the character budget means the target cannot be checked. Every problem of every target is
+ * listed at once.
  */
-function assertCodeFits(contexts: ReadonlyMap<string, ExtractedCodeContext>): void {
+function assertNoUncheckedTargets(contexts: ReadonlyMap<string, ExtractedCodeContext>): void {
   const unchecked: UncheckedTarget[] = [];
   for (const [targetName, codeContext] of contexts) {
-    const reasons = codeContext.oversizedFiles.map(
-      (file) =>
-        `${file} is larger than the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MiB per file`
-    );
-    if (codeContext.truncated) {
-      reasons.push(
-        `the code is longer than the budget of ${DEFAULT_MAX_CHARS.toLocaleString('en-US')} characters per target`
-      );
-    }
+    const reasons = [
+      ...codeContext.unreadableFiles.map(({ file, code }) => `${file} cannot be read (${code})`),
+      ...codeContext.oversizedFiles.map(
+        (file) =>
+          `${file} is larger than the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MiB per file`
+      ),
+      ...(codeContext.truncated
+        ? [
+            `the code is longer than the budget of ${DEFAULT_MAX_CHARS.toLocaleString('en-US')} characters per target`,
+          ]
+        : []),
+    ];
     if (reasons.length > 0) {
       unchecked.push({ targetName, reasons });
     }
@@ -171,7 +175,7 @@ export async function runChecks(
       await extractCodeContext(targetConfig.codePaths, { cwd, gitDiff: options.gitDiff })
     );
   }
-  assertCodeFits(codeContexts);
+  assertNoUncheckedTargets(codeContexts);
 
   const targetResults: TargetCheckResult[] = [];
 

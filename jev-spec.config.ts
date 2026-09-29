@@ -94,10 +94,10 @@ export default defineConfig({
     },
 
     run: {
-      description: 'A run validates before it does anything else',
+      description: 'A run validates and reads every target before it sends anything',
       specPath: 'docs/specs/fail-closed.md',
       specFilter: { requirementPrefix: 'REQ-RUN-' },
-      codePaths: ['src/runner/engine.ts'],
+      codePaths: ['src/runner/engine.ts', 'src/context/code-extractor.ts'],
       rubrics: {
         'REQ-RUN-01': noul(
           'Does a run validate the configuration before it reads a spec, reads code or creates the client of the API?'
@@ -105,10 +105,14 @@ export default defineConfig({
         'REQ-RUN-02': noul(
           'Before the first target is evaluated, does a run throw an error when the code of any target it checks has a file over the size limit or was cut at the character budget?'
         ),
+        'REQ-RUN-03': noul(
+          'When a file that matches the codePaths of a target cannot be read, does the run throw an error before the first target is evaluated, instead of leaving the file out?'
+        ),
       },
       assertions: {
         'REQ-RUN-01': MET,
         'REQ-RUN-02': MET,
+        'REQ-RUN-03': MET,
       },
     },
 

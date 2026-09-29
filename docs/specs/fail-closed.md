@@ -38,6 +38,10 @@ A run validates the configuration before it reads a spec, reads code or creates 
 
 A run reads the code of every target it checks before it sends anything. When a code file of such a target is larger than the size limit, or the code of such a target is longer than the character budget, the run stops with an error that names each target and file concerned, and no target is evaluated. A dry run stops the same way. A target that a diff run skips is not concerned.
 
+### REQ-RUN-03: A code file that cannot be read stops the run
+
+A file that matches the `codePaths` of a target the run checks, but cannot be read, for example because of its permissions or because it was deleted after it was matched, is never left out. The run stops before anything is sent, with an error that names the target, the file and the error code, and no target is evaluated. A dry run stops the same way.
+
 ## Answers
 
 ### REQ-ANSWER-01: A value outside its range fails

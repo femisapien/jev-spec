@@ -393,7 +393,7 @@ npx jev-spec check --format markdown >> "$GITHUB_STEP_SUMMARY"
 
 - `0`: All targets and assertions passed.
 - `1`: A check failed (one or more assertions violated).
-- `2`: Configuration or runtime error (missing file, invalid argument, missing API key, code that does not fit in one request).
+- `2`: Configuration or runtime error (missing file, invalid argument, missing API key, code that does not fit in one request, a code file that cannot be read).
 
 ---
 
@@ -496,7 +496,7 @@ The push step is a full run on purpose: on `main`, `origin/main...HEAD` is an em
 | **Git Revision Sanitization** | Arguments passed to `--diff` are validated against strict git revision patterns (`assertGitRevision()`). Rejects flags starting with `-` (blocking option injection like `--output`), terminates option parsing with `--end-of-options` before the revision range, and enforces a 15-second command timeout. |
 | **Prompt Boundaries (best effort)** | The specification and the code are sent in separate fields, inside delimiting tags (`<specification_context>` and `<untrusted_source_code>`), with a note that asks the model to ignore instructions embedded in them. This is a mitigation, not a guarantee: TypeSafe documents that content written to steer the model, including text that argues for its own classification, [can move the answer](https://docs.typesafe.ai/model-jaggedness/jev-1.13#adversarial-content). A comment that claims compliance is such text, so treat a pass on code you do not trust as weak evidence. |
 | **Base URL SSRF Protection** | By default, requests are routed exclusively to official TypeSafe AI endpoints (`https://api.typesafe.ai`). Custom API base URLs are blocked unless `allowCustomBaseUrl: true` is explicitly configured. Any value other than the booleans `true` and `false`, such as the string `"false"`, is a configuration error (exit code `2`), and `baseUrl` must be an http or https URL. |
-| **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per target, 2 MiB per file and 120,000 characters of code per target. A target over a limit stops the run with exit code `2` before anything is sent; its code is never cut or left out. |
+| **Resource Bounds** | Prevents denial-of-service and runaway memory consumption by enforcing strict limits: max 500 files per target, 2 MiB per file and 120,000 characters of code per target. A target over a limit, or with a code file that cannot be read, stops the run with exit code `2` before anything is sent; its code is never cut or left out. |
 
 ---
 

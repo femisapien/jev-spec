@@ -29,8 +29,15 @@ export interface ExtractedCodeContext {
   readonly truncated: boolean;
   /** Matched files left out because they are larger than `MAX_FILE_SIZE_BYTES`. */
   readonly oversizedFiles: readonly string[];
+  /** Matched files left out because reading them failed, with the error code. */
+  readonly unreadableFiles: readonly UnreadableFile[];
   /** Diff run only: the changed files that belong to the target. Empty when the target is skipped. */
   readonly changedFiles?: readonly string[];
+}
+
+export interface UnreadableFile {
+  readonly file: string;
+  readonly code: string;
 }
 
 export const DEFAULT_MAX_CHARS = 120_000;
@@ -38,6 +45,7 @@ export const DEFAULT_MAX_CHARS = 120_000;
 interface ReadFiles {
   readonly files: CodeFileContext[];
   readonly oversizedFiles: string[];
+  readonly unreadableFiles: UnreadableFile[];
 }
 
 async function readFileWithinLimits(
@@ -83,7 +91,11 @@ export async function extractCodeContext(
     const changedFiles = await changedFilesMatching(filePatterns, cwd, gitDiff);
     if (changedFiles.length === 0) {
       return {
-        ...buildExtractedContext({ files: [], oversizedFiles: [] }, 'diff', maxChars),
+        ...buildExtractedContext(
+          { files: [], oversizedFiles: [], unreadableFiles: [] },
+          'diff',
+          maxChars
+        ),
         changedFiles,
       };
     }
@@ -99,31 +111,38 @@ export async function extractCodeContext(
 }
 
 async function readMatchingFiles(filePatterns: readonly string[], cwd: string): Promise<ReadFiles> {
-  const resolvedPaths = await resolveGlobPatterns(filePatterns, cwd);
-  if (resolvedPaths.length > MAX_FILE_COUNT) {
+  return readFiles(await resolveGlobPatterns(filePatterns, cwd), cwd);
+}
+
+/**
+ * Reads files of the working tree. A file that cannot be read is recorded, never skipped: a check
+ * of what is left would pass on code the model never saw.
+ */
+async function readFiles(relativePaths: readonly string[], cwd: string): Promise<ReadFiles> {
+  if (relativePaths.length > MAX_FILE_COUNT) {
     throw new PathSecurityError(
-      `File count ${resolvedPaths.length} exceeds maximum of ${MAX_FILE_COUNT} per target`
+      `File count ${relativePaths.length} exceeds maximum of ${MAX_FILE_COUNT} per target`
     );
   }
 
-  const files: CodeFileContext[] = [];
-  const oversizedFiles: string[] = [];
-
-  for (const relPath of resolvedPaths) {
+  const read: ReadFiles = { files: [], oversizedFiles: [], unreadableFiles: [] };
+  for (const relPath of relativePaths) {
+    const absolutePath = await assertInsideRoot(cwd, relPath);
     try {
-      const absolutePath = await assertInsideRoot(cwd, relPath);
       const fileContext = await readFileWithinLimits(absolutePath, relPath);
       if (fileContext === 'oversized') {
-        oversizedFiles.push(relPath);
+        read.oversizedFiles.push(relPath);
       } else if (fileContext) {
-        files.push(fileContext);
+        read.files.push(fileContext);
       }
-    } catch {
-      // Skip unreadable or out-of-root paths
+    } catch (error: unknown) {
+      read.unreadableFiles.push({
+        file: relPath,
+        code: (error as NodeJS.ErrnoException).code ?? String(error),
+      });
     }
   }
-
-  return { files, oversizedFiles };
+  return read;
 }
 
 /** The files of the target as they are staged in the git index. */
@@ -157,7 +176,7 @@ async function readStagedFiles(filePatterns: readonly string[], cwd: string): Pr
       source: 'file',
     });
   }
-  return { files, oversizedFiles };
+  return { files, oversizedFiles, unreadableFiles: [] };
 }
 
 /**
@@ -174,7 +193,7 @@ async function changedFilesMatching(
 }
 
 function buildExtractedContext(
-  { files, oversizedFiles }: ReadFiles,
+  { files, oversizedFiles, unreadableFiles }: ReadFiles,
   mode: 'full' | 'diff',
   maxChars: number
 ): ExtractedCodeContext {
@@ -196,6 +215,7 @@ function buildExtractedContext(
     mode,
     truncated,
     oversizedFiles,
+    unreadableFiles,
   };
 }
 
@@ -206,31 +226,5 @@ export async function extractCodeFromPaths(
   filePaths: readonly string[],
   cwd: string = process.cwd()
 ): Promise<ExtractedCodeContext> {
-  if (filePaths.length > MAX_FILE_COUNT) {
-    throw new PathSecurityError(
-      `File count ${filePaths.length} exceeds maximum of ${MAX_FILE_COUNT} per target`
-    );
-  }
-
-  const files: CodeFileContext[] = [];
-  const oversizedFiles: string[] = [];
-
-  for (const relPath of filePaths) {
-    try {
-      const absolutePath = await assertInsideRoot(cwd, relPath);
-      const fileContext = await readFileWithinLimits(absolutePath, relPath);
-      if (fileContext === 'oversized') {
-        oversizedFiles.push(relPath);
-      } else if (fileContext) {
-        files.push(fileContext);
-      }
-    } catch (error: unknown) {
-      if (error instanceof PathSecurityError) {
-        throw error;
-      }
-      // Skip unreadable paths
-    }
-  }
-
-  return buildExtractedContext({ files, oversizedFiles }, 'full', DEFAULT_MAX_CHARS);
+  return buildExtractedContext(await readFiles(filePaths, cwd), 'full', DEFAULT_MAX_CHARS);
 }
