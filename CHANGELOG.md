@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `jev-spec --help` still described `--staged` as "Check staged git changes only" and `--diff` as "Check a git diff range", which is what they did before 0.3.0. Both lines now say what a diff run does: it checks only the targets that the change touches, each in full. The code comments in the READMEs say the same, and the Japanese, Chinese and Korean READMEs head the section "diff run" instead of "check only the changes", which contradicted the sentence below it.
+- Client options of the wrong type were accepted, and read by truthiness. In a JavaScript configuration, `allowCustomBaseUrl: "false"` (a string) enabled a custom API endpoint. `mock: "false"` replaced the model with the mock evaluator, whose placeholder answers can pass the gate. Validation now checks every client option. `allowCustomBaseUrl` and `mock` must be `true` or `false`. `baseUrl` must be an http or https URL. `timeoutMs` must be a positive number. `apiKey` and `model` must be non-empty strings, and a `client` that is not an object is rejected. A wrong value stops the run with exit code `2` and names the option. The value of an invalid `apiKey` is never printed. The evaluator also acts on `allowCustomBaseUrl` and `mock` only when they are exactly `true` ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)).
 
 ## [0.3.0] - 2026-09-21
 

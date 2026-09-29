@@ -1,0 +1,15 @@
+diff --git a/src/config-validation.ts b/src/config-validation.ts
+--- a/src/config-validation.ts
++++ b/src/config-validation.ts
+@@ -246,11 +246,6 @@ function validateClient(client: unknown, issues: string[]): void {
+     return;
+   }
+ 
+-  for (const key of ['allowCustomBaseUrl', 'mock'] as const) {
+-    if (client[key] !== undefined && typeof client[key] !== 'boolean') {
+-      issues.push(`client.${key}: must be true or false, got ${JSON.stringify(client[key])}`);
+-    }
+-  }
+   // The value of an API key is never repeated in an issue.
+   if (client.apiKey !== undefined && !isNonEmptyString(client.apiKey)) {
+     issues.push('client.apiKey: must be a non-empty string');

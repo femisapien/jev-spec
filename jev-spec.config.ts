@@ -75,6 +75,9 @@ export default defineConfig({
         'REQ-CONFIG-05': noul(
           'Does the validation collect every issue it finds and throw one error that lists all of them?'
         ),
+        'REQ-CONFIG-06': noul(
+          'Does the validation add an issue when allowCustomBaseUrl or mock in the client options is set to a value that is not a boolean?'
+        ),
       },
       assertions: {
         'REQ-CONFIG-01': MET,
@@ -82,6 +85,7 @@ export default defineConfig({
         'REQ-CONFIG-03': MET,
         'REQ-CONFIG-04': MET,
         'REQ-CONFIG-05': MET,
+        'REQ-CONFIG-06': MET,
       },
     },
 

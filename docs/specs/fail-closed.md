@@ -24,6 +24,10 @@ A probability threshold or a confidence threshold outside the range from 0 to 1 
 
 Validation collects every problem it finds and reports them together, each with the path of the offending entry in the configuration.
 
+### REQ-CONFIG-06: Client options have the type they are read as
+
+A client option of the wrong type is rejected. `allowCustomBaseUrl` and `mock` must be `true` or `false`, `baseUrl` an http or https URL, `timeoutMs` a positive number, and `apiKey` and `model` non-empty strings. A string such as `"false"` would otherwise read as true and enable a custom endpoint or the mock evaluator.
+
 ## Runs
 
 ### REQ-RUN-01: A run validates the configuration first
