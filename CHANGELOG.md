@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-29
+
+A follow-up to 0.4.0. The recommended GitHub Actions workflow in the READMEs let a pull request that changed only a spec pass without checking anything; it now runs the full check. The documentation now says that the configuration is executed by every run, including `--dry-run`, as promised in [#25](https://github.com/nozomi-koborinai/jev-spec/issues/25). A target over the file count limit is now reported like a target over the other limits. If you copied the workflow from the README, update it.
+
 ### Changed
 
 - The recommended GitHub Actions workflow in the READMEs now runs the full check on pull requests from the same repository. It ran `--diff origin/main...HEAD` there, which skips every target whose code did not change, so a pull request that changed only a specification passed without anything being checked. If you copied that workflow, replace the diff run with a full run. The `jev-spec-init` skill already recommended a full run.
@@ -175,7 +179,8 @@ A bug-fix release. Several of these bugs made a check pass, fail or get skipped 
 
 - Initial release.
 
-[Unreleased]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/nozomi-koborinai/jev-spec/compare/v0.1.1...v0.2.0
