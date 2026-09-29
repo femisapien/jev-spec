@@ -1,0 +1,12 @@
+diff --git a/src/cli/commands/check.ts b/src/cli/commands/check.ts
+--- a/src/cli/commands/check.ts
++++ b/src/cli/commands/check.ts
+@@ -58,7 +58,7 @@ async function reportError(
+   const report: ErrorReport = {
+     passed: false,
+     error: message,
+-    uncheckedTargets: error instanceof UncheckedTargetsError ? error.targets : [],
++    uncheckedTargets: [],
+   };
+   try {
+     await writeReport(

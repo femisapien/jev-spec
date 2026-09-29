@@ -86,6 +86,10 @@ _Avoid_: Diff mode, staged mode
 **Skipped**:
 Said of a target whose check a diff run did not perform because none of its code changed. It counts as neither passed nor failed.
 
+**Unchecked**:
+Said of a target whose check a run could not perform because its code cannot be sent in one request. Unlike a skipped target, it stops the run with exit code 2, and the report names it with every reason.
+_Avoid_: Skipped (a diff run's choice), omitted, truncated
+
 **Dry run**:
 A validation of the whole setup that sends nothing to the model and produces no answers.
 _Avoid_: Mock, offline check

@@ -379,6 +379,8 @@ npx jev-spec check --format markdown --output jev-spec-report.md
 npx jev-spec check --format json --output result.json
 ```
 
+종료 코드 `2`로 끝난 실행에서도 `--format json`과 `--format markdown`은 보고서를 작성합니다. 보고서에는 `"passed": false`, `error`의 메시지, 그리고 `uncheckedTargets`에 코드를 검사할 수 없었던 각 대상과 그 `reasons`가 들어갑니다(그 밖의 오류에서는 빈 목록). 오류는 표준 오류에도 출력됩니다. terminal 형식은 오류만 출력합니다.
+
 `--output`은 프로젝트 루트 내부 경로만 허용합니다. GitHub Actions의 Step Summary(워크스페이스 외부에 위치)에 게시하려면 표준 출력을 리디렉션하세요.
 
 ```bash

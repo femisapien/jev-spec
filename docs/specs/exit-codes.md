@@ -19,3 +19,7 @@ When a run cannot be carried out, the command prints the error and exits with co
 ### REQ-EXIT-04: Help and version exit with 0 without a configuration
 
 `--help` prints the usage text and `--version` prints the version. Both exit with code 0, and neither loads a configuration file.
+
+### REQ-EXIT-05: A run that exits with 2 still writes its report
+
+With `--format json` or `--format markdown`, a run that exits with 2 still writes a report, to `--output` when that path is valid and to standard output otherwise. The report says that the run did not pass, gives the error, and names each target whose code could not be checked, with every reason. The error is printed to standard error as well. The terminal format prints the error only, and a usage error, which stops the command before the format is known, writes no report.

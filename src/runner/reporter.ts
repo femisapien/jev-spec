@@ -1,4 +1,4 @@
-import type { OverallCheckResult, TargetCheckResult, TargetPlan } from '../types.js';
+import type { ErrorReport, OverallCheckResult, TargetCheckResult, TargetPlan } from '../types.js';
 
 const MOCK_NOTICE =
   'MOCK MODE: results come from the offline mock evaluator, not from the Jev API. ' +
@@ -111,6 +111,23 @@ export function formatTerminalReport(result: OverallCheckResult): string {
     `Overall: ${overallIcon} ${result.passed ? 'ALL CHECKS PASSED' : 'CHECKS FAILED'}${skippedNote} (${result.totalDurationMs}ms, $${result.totalEstimatedCostUsd.toFixed(5)})`
   );
 
+  return lines.join('\n');
+}
+
+export function formatMarkdownErrorReport(report: ErrorReport): string {
+  const lines = [
+    '### 🛡️ `jev-spec` Check Summary\n',
+    '> ⛔ The run stopped: nothing was checked.\n',
+  ];
+  if (report.uncheckedTargets.length > 0) {
+    lines.push('| Target | Status | Reason |');
+    lines.push('| :--- | :---: | :--- |');
+    for (const { targetName, reasons } of report.uncheckedTargets) {
+      lines.push(`| \`${targetName}\` | ⛔ UNCHECKED | ${reasons.join('<br>')} |`);
+    }
+    lines.push('');
+  }
+  lines.push('```text', report.error, '```');
   return lines.join('\n');
 }
 

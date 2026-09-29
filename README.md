@@ -379,6 +379,8 @@ npx jev-spec check --format markdown --output jev-spec-report.md
 npx jev-spec check --format json --output result.json
 ```
 
+When a run exits with `2`, `--format json` and `--format markdown` still write a report. It has `"passed": false`, the message in `error`, and in `uncheckedTargets` each target whose code could not be checked, with its `reasons` (an empty list for any other error). The error is printed to standard error as well. The terminal format prints the error only.
+
 `--output` only accepts paths inside the project root. To publish the report to the GitHub Actions step summary (which lives outside the workspace), redirect stdout instead:
 
 ```bash

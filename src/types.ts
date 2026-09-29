@@ -167,6 +167,20 @@ export interface TargetCheckResult {
   readonly changedFiles?: readonly string[];
 }
 
+/** A target that a run could not check, and every reason why. */
+export interface UncheckedTarget {
+  readonly targetName: string;
+  readonly reasons: readonly string[];
+}
+
+/** What the json and markdown formats report for a run that exits with 2. */
+export interface ErrorReport {
+  readonly passed: false;
+  readonly error: string;
+  /** Empty unless the error is about the code of particular targets. */
+  readonly uncheckedTargets: readonly UncheckedTarget[];
+}
+
 export interface OverallCheckResult {
   /** True when results come from the offline mock evaluator rather than the Jev API. */
   readonly mock?: boolean;

@@ -45,12 +45,16 @@ export default defineConfig({
         'REQ-EXIT-04': noul(
           'Do --help and --version print their output and return exit code 0 before any configuration file is loaded?'
         ),
+        'REQ-EXIT-05': noul(
+          'When the check command catches an error that lists targets whose code cannot be checked, does the json or markdown report it writes name each of those targets?'
+        ),
       },
       assertions: {
         'REQ-EXIT-01': MET,
         'REQ-EXIT-02': MET,
         'REQ-EXIT-03': MET,
         'REQ-EXIT-04': MET,
+        'REQ-EXIT-05': MET,
       },
     },
 

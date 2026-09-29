@@ -379,6 +379,8 @@ npx jev-spec check --format markdown --output jev-spec-report.md
 npx jev-spec check --format json --output result.json
 ```
 
+即使运行以退出码 `2` 结束，`--format json` 与 `--format markdown` 仍会写出报告。报告包含 `"passed": false`、`error` 中的错误信息，以及 `uncheckedTargets` 中代码无法检查的每个目标及其 `reasons`（其他错误时为空列表）。错误同时输出到标准错误。terminal 格式只输出错误。
+
 `--output` 只接受项目根目录内的路径。若要写入 GitHub Actions 的 Step Summary（位于工作区之外），请改用标准输出重定向：
 
 ```bash
