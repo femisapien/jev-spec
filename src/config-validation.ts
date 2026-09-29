@@ -251,9 +251,10 @@ function validateClient(client: unknown, issues: string[]): void {
       issues.push(`client.${key}: must be true or false, got ${JSON.stringify(client[key])}`);
     }
   }
-  // The value of an API key is never repeated in an issue.
-  if (client.apiKey !== undefined && !isNonEmptyString(client.apiKey)) {
-    issues.push('client.apiKey: must be a non-empty string');
+  // The value of an API key is never repeated in an issue. An empty string is allowed and
+  // read as unset, because GitHub Actions expands a missing secret to "".
+  if (client.apiKey !== undefined && typeof client.apiKey !== 'string') {
+    issues.push('client.apiKey: must be a string');
   }
   if (
     client.baseUrl !== undefined &&

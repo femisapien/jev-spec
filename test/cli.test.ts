@@ -97,6 +97,35 @@ describe('CLI check command', () => {
     expect(stderr).toContain('API key is required');
   });
 
+  it('REQ-CONFIG-06: treats an empty client.apiKey as unset', async () => {
+    const tempDir = await makeProjectTempDir();
+    for (const apiKey of ['', '   ']) {
+      const configPath = path.join(tempDir, `jev-spec.config.${apiKey.length}.mjs`);
+      await fs.writeFile(
+        configPath,
+        LIVE_CONFIG_SOURCE.replace(
+          'export default {',
+          `export default {\n  client: { apiKey: ${JSON.stringify(apiKey)} },`
+        ),
+        'utf-8'
+      );
+
+      const live = await captureConsole(() =>
+        checkCommand({ cwd: pkgRoot, config: configPath, format: 'json' })
+      );
+      const dryRun = await captureConsole(() =>
+        checkCommand({ cwd: pkgRoot, config: configPath, format: 'json', dryRun: true })
+      );
+
+      expect(`${JSON.stringify(apiKey)} live: ${live.result} ${live.stderr.trim()}`).toContain(
+        `${JSON.stringify(apiKey)} live: 2 [jev-spec error] API key is required`
+      );
+      expect(`${JSON.stringify(apiKey)} dry run: ${dryRun.result} ${dryRun.stderr.trim()}`).toBe(
+        `${JSON.stringify(apiKey)} dry run: 0 `
+      );
+    }
+  });
+
   it('runs offline with --mock even though the configuration does not enable mock mode', async () => {
     const tempDir = await makeProjectTempDir();
     const configPath = path.join(tempDir, 'jev-spec.config.mjs');

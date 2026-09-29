@@ -197,7 +197,7 @@ describe('validateConfig', () => {
       [{ timeoutMs: Number.POSITIVE_INFINITY }, 'client.timeoutMs'],
       [{ timeoutMs: Number.NaN }, 'client.timeoutMs'],
       [{ apiKey: 123 }, 'client.apiKey'],
-      [{ apiKey: '  ' }, 'client.apiKey'],
+      [{ apiKey: null }, 'client.apiKey'],
       [{ model: 7 }, 'client.model'],
     ];
     for (const [client, path] of cases) {
@@ -206,6 +206,11 @@ describe('validateConfig', () => {
         `${JSON.stringify(client)}: ${issues.some((issue) => issue.startsWith(`${path}:`))}`
       ).toBe(`${JSON.stringify(client)}: true`);
     }
+  });
+
+  it('REQ-CONFIG-06: accepts an empty apiKey, which a missing CI secret produces', () => {
+    expect(issuesOf({ ...sampleConfig, client: { apiKey: '' } })).toEqual([]);
+    expect(issuesOf({ ...sampleConfig, client: { apiKey: '   ' } })).toEqual([]);
   });
 
   it('REQ-CONFIG-06: rejects a client that is not an object', () => {
