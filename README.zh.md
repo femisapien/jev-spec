@@ -101,7 +101,7 @@ gh skill install nozomi-koborinai/jev-spec jev-spec-init
 gh skill install nozomi-koborinai/jev-spec jev-spec-fix
 ```
 
-然后让你的智能体“配置 jev-spec”。`jev-spec-init` 会建立规范与代码的对应关系，为每条需求编写一个聚焦的问题，离线校验配置是否连通，并报告尚未覆盖的需求。`jev-spec-fix` 用于排查失败的检查，并报告哪些内容已验证、哪些尚未验证。
+然后让你的智能体“配置 jev-spec”。`jev-spec-init` 会建立规范与代码的对应关系，为每条需求编写一个聚焦的问题，离线校验配置是否连通，并报告尚未覆盖的需求。`jev-spec-fix` 用于排查失败的检查，并报告哪些内容已检查、哪些尚未检查。
 
 **手动配置。** 仅需三步即可在项目中引入 `jev-spec`：
 

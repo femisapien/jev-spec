@@ -101,7 +101,7 @@ gh skill install nozomi-koborinai/jev-spec jev-spec-init
 gh skill install nozomi-koborinai/jev-spec jev-spec-fix
 ```
 
-그런 다음 에이전트에게 "jev-spec을 설정해 줘"라고 요청하세요. `jev-spec-init`은 명세와 코드를 매핑하고, 요구 사항마다 초점을 좁힌 질문을 하나씩 작성하며, 오프라인으로 연결 상태를 검증하고, 커버되지 않은 요구 사항을 보고합니다. `jev-spec-fix`는 실패한 검사의 원인을 가려내고, 무엇이 검증되었고 무엇이 검증되지 않았는지 보고합니다.
+그런 다음 에이전트에게 "jev-spec을 설정해 줘"라고 요청하세요. `jev-spec-init`은 명세와 코드를 매핑하고, 요구 사항마다 초점을 좁힌 질문을 하나씩 작성하며, 오프라인으로 연결 상태를 검증하고, 커버되지 않은 요구 사항을 보고합니다. `jev-spec-fix`는 실패한 검사의 원인을 가려내고, 무엇이 검사되었고 무엇이 검사되지 않았는지 보고합니다.
 
 **수동 설정.** 단 세 단계로 `jev-spec`을 프로젝트에 도입할 수 있습니다.
 

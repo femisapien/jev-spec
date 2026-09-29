@@ -101,7 +101,7 @@ gh skill install nozomi-koborinai/jev-spec jev-spec-init
 gh skill install nozomi-koborinai/jev-spec jev-spec-fix
 ```
 
-Then ask your agent to "set up jev-spec". `jev-spec-init` maps your specifications to code, writes one focused question per requirement, validates the wiring offline and reports which requirements are not covered. `jev-spec-fix` works through a failing check and reports what was and was not verified.
+Then ask your agent to "set up jev-spec". `jev-spec-init` maps your specifications to code, writes one focused question per requirement, validates the wiring offline and reports which requirements are not covered. `jev-spec-fix` works through a failing check and reports what was and was not checked.
 
 **Manual setup.** Get up and running with `jev-spec` in three steps:
 
