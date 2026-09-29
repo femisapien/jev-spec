@@ -1,0 +1,12 @@
+diff --git a/src/evaluator/jev-evaluator.ts b/src/evaluator/jev-evaluator.ts
+--- a/src/evaluator/jev-evaluator.ts
++++ b/src/evaluator/jev-evaluator.ts
+@@ -198,7 +198,7 @@ export class MockJevEvaluator implements JevEvaluator {
+  * 0.99.
+  */
+ function numberOrNaN(value: unknown): number {
+-  return typeof value === 'number' ? value : Number.NaN;
++  return Number(value);
+ }
+ 
+ /**
