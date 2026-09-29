@@ -1,5 +1,10 @@
 import { validateConfig } from '../config-validation.js';
-import { type ExtractedCodeContext, extractCodeContext } from '../context/code-extractor.js';
+import {
+  DEFAULT_MAX_CHARS,
+  type ExtractedCodeContext,
+  extractCodeContext,
+} from '../context/code-extractor.js';
+import { MAX_FILE_SIZE_BYTES } from '../context/path-security.js';
 import type { GitDiffOptions } from '../context/types.js';
 import {
   createJevEvaluator,
@@ -76,12 +81,35 @@ function planWarnings(
       'codePaths matched no file: the target would be evaluated against an empty implementation'
     );
   }
-  if (codeContext.truncated) {
-    warnings.push(
-      'the code context exceeds the character budget and would be cut: narrow codePaths or split the target'
+  return warnings;
+}
+
+/**
+ * Stops the run when the code of a target does not fit in one request. A verdict on part of the
+ * code is not a verdict on the target, so a file over the size limit or code over the character
+ * budget means the target cannot be checked. Every problem of every target is listed at once.
+ */
+function assertCodeFits(contexts: ReadonlyMap<string, ExtractedCodeContext>): void {
+  const problems: string[] = [];
+  for (const [targetName, codeContext] of contexts) {
+    for (const file of codeContext.oversizedFiles) {
+      problems.push(
+        `${targetName}: ${file} is larger than the limit of ${MAX_FILE_SIZE_BYTES / (1024 * 1024)} MiB per file`
+      );
+    }
+    if (codeContext.truncated) {
+      problems.push(
+        `${targetName}: the code is longer than the budget of ${DEFAULT_MAX_CHARS.toLocaleString('en-US')} characters per target`
+      );
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `Code that does not fit in one request cannot be checked, so nothing was sent:\n${problems
+        .map((problem) => `  - ${problem}`)
+        .join('\n')}\nNarrow codePaths or split the target.`
     );
   }
-  return warnings;
 }
 
 /** Dry-run warnings about the setup as a whole rather than about one target. */
@@ -117,20 +145,27 @@ export async function runChecks(
   const targetNames = options.target ? [options.target] : Object.keys(config.targets);
   const runWarnings = options.dryRun ? setupWarnings(config) : [];
 
-  const targetResults: TargetCheckResult[] = [];
-
+  // Every target is read before the first request, so code that does not fit stops the run
+  // before anything is sent.
+  const codeContexts = new Map<string, ExtractedCodeContext>();
   for (const targetName of targetNames) {
     const targetConfig = config.targets[targetName];
     if (!targetConfig) {
       throw new Error(`Target "${targetName}" not found in configuration`);
     }
+    codeContexts.set(
+      targetName,
+      await extractCodeContext(targetConfig.codePaths, { cwd, gitDiff: options.gitDiff })
+    );
+  }
+  assertCodeFits(codeContexts);
 
+  const targetResults: TargetCheckResult[] = [];
+
+  for (const targetName of targetNames) {
+    const targetConfig = config.targets[targetName];
+    const codeContext = codeContexts.get(targetName) as ExtractedCodeContext;
     const targetStart = Date.now();
-
-    const codeContext = await extractCodeContext(targetConfig.codePaths, {
-      cwd,
-      gitDiff: options.gitDiff,
-    });
 
     // Decide this before touching the spec, so an untouched target can never fail the run.
     // The changed files decide, not the files that are left: a target whose code was deleted

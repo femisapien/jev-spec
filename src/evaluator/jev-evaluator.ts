@@ -193,6 +193,15 @@ export class MockJevEvaluator implements JevEvaluator {
 }
 
 /**
+ * A value of an answer as the API returned it, or NaN, which fails every assertion on it. The SDK
+ * does not check the response at run time, and converting would read `null` as 0 and `"0.99"` as
+ * 0.99.
+ */
+function numberOrNaN(value: unknown): number {
+  return typeof value === 'number' ? value : Number.NaN;
+}
+
+/**
  * Live evaluator backed by @typesafe-ai/sdk systemOne parallel question API.
  */
 export class LiveJevEvaluator implements JevEvaluator {
@@ -256,14 +265,14 @@ export class LiveJevEvaluator implements JevEvaluator {
       if (rubric.type === 'noul' && answer.type === 'noul') {
         mapped[name] = {
           type: 'noul',
-          probability: Number(answer.noul),
+          probability: numberOrNaN(answer.noul),
         };
       } else if (rubric.type === 'choice' && answer.type === 'choice') {
         const distribution = (answer.probabilities ?? {}) as Record<string, number>;
         mapped[name] = {
           type: 'choice',
           choice: String(answer.choice),
-          confidence: Number(answer.confidence),
+          confidence: numberOrNaN(answer.confidence),
           distribution,
         };
       } else if (rubric.type === 'score' && answer.type === 'score') {
@@ -271,7 +280,7 @@ export class LiveJevEvaluator implements JevEvaluator {
           (answer.probabilities ?? {}) as Record<string, number>
         );
         const legend = (answer.legend ?? {}) as Record<string, string>;
-        const score = Number(answer.score);
+        const score = numberOrNaN(answer.score);
         const selectedLevel =
           legend[String(Math.round(score))] ??
           rubric.levels[Math.min(Math.round(score), rubric.levels.length - 1)];
@@ -280,7 +289,7 @@ export class LiveJevEvaluator implements JevEvaluator {
           type: 'score',
           score,
           maxScore: rubric.levels.length - 1,
-          confidence: Number(answer.confidence),
+          confidence: numberOrNaN(answer.confidence),
           selectedLevel,
           levelProbabilities,
         };

@@ -1,14 +1,14 @@
 diff --git a/src/context/code-extractor.ts b/src/context/code-extractor.ts
 --- a/src/context/code-extractor.ts
 +++ b/src/context/code-extractor.ts
-@@ -79,9 +79,7 @@
+@@ -89,9 +89,7 @@ export async function extractCodeContext(
      }
      // A staged run judges what is about to be committed. After `git add -p` the working tree
      // holds something else.
--    const files = gitDiff.staged
+-    const read = gitDiff.staged
 -      ? await readStagedFiles(filePatterns, cwd)
 -      : await readMatchingFiles(filePatterns, cwd);
-+    const files = await readMatchingFiles(filePatterns, cwd);
-     return { ...buildExtractedContext(files, 'diff', maxChars), changedFiles };
++    const read = await readMatchingFiles(filePatterns, cwd);
+     return { ...buildExtractedContext(read, 'diff', maxChars), changedFiles };
    }
  

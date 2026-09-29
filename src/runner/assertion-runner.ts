@@ -43,13 +43,14 @@ export function assertRubric(
 }
 
 /**
- * A comparison against NaN is always false, which would let a malformed evaluator answer
- * slip through every threshold. Asserted values must therefore be finite numbers.
+ * A comparison against NaN is always false, and a value outside its range clears one side of any
+ * threshold, so either would let a malformed evaluator answer slip through. Asserted values must
+ * be numbers from 0 to `max`; the comparisons below are false for NaN.
  */
-function nonFiniteReason(label: string, value: number): string | undefined {
-  return Number.isFinite(value)
+function outOfRangeReason(label: string, value: number, max: number): string | undefined {
+  return value >= 0 && value <= max
     ? undefined
-    : `Evaluator returned a non-numeric ${label} (${value})`;
+    : `Evaluator returned an invalid ${label} (${value}): expected a number from 0 to ${max}`;
 }
 
 function assertNoul(
@@ -58,7 +59,7 @@ function assertNoul(
   result: NoulResult,
   assertion: NoulAssertion
 ): AssertionEvaluation {
-  const invalid = nonFiniteReason('probability', result.probability);
+  const invalid = outOfRangeReason('probability', result.probability, 1);
   if (invalid) {
     return { rubricName, rubric, result, passed: false, reason: invalid };
   }
@@ -90,7 +91,7 @@ function assertMinConfidence(confidence: number, minConfidence?: number): string
   if (minConfidence === undefined) {
     return undefined;
   }
-  const invalid = nonFiniteReason('confidence', confidence);
+  const invalid = outOfRangeReason('confidence', confidence, 1);
   if (invalid) {
     return invalid;
   }
@@ -140,7 +141,10 @@ function assertScore(
   result: ScoreResult,
   assertion: ScoreAssertion
 ): AssertionEvaluation {
-  const invalid = nonFiniteReason('score', result.score);
+  // The top level comes from the configuration, not from the answer. A rubric of another type
+  // yields NaN, so the score fails.
+  const topLevel = rubric.type === 'score' ? rubric.levels.length - 1 : Number.NaN;
+  const invalid = outOfRangeReason('score', result.score, topLevel);
   if (invalid) {
     return { rubricName, rubric, result, passed: false, reason: invalid };
   }

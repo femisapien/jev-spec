@@ -1,14 +1,13 @@
 diff --git a/src/runner/assertion-runner.ts b/src/runner/assertion-runner.ts
-index a929bd9..3b593bc 100644
 --- a/src/runner/assertion-runner.ts
 +++ b/src/runner/assertion-runner.ts
-@@ -47,9 +47,7 @@ export function assertRubric(
-  * slip through every threshold. Asserted values must therefore be finite numbers.
+@@ -48,9 +48,7 @@ export function assertRubric(
+  * be numbers from 0 to `max`; the comparisons below are false for NaN.
   */
- function nonFiniteReason(label: string, value: number): string | undefined {
--  return Number.isFinite(value)
+ function outOfRangeReason(label: string, value: number, max: number): string | undefined {
+-  return value >= 0 && value <= max
 -    ? undefined
--    : `Evaluator returned a non-numeric ${label} (${value})`;
+-    : `Evaluator returned an invalid ${label} (${value}): expected a number from 0 to ${max}`;
 +  return undefined;
  }
  
