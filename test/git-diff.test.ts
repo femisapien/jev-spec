@@ -51,6 +51,42 @@ describe('extractGitDiff against a real git repository', () => {
     repo.git('reset', '--quiet', 'src/日本.ts');
   });
 
+  it('names a non-ASCII file as it is on disk, not as git quotes it', async () => {
+    repo.git('config', 'core.quotePath', 'true');
+    await repo.write('src/日本.ts', 'export const x = 1;\n');
+    repo.git('add', 'src/日本.ts');
+
+    const diff = await extractGitDiff({ staged: true }, repo.dir);
+
+    expect(diff.changedPaths).toEqual(['src/日本.ts']);
+    expect(diff.files.map((file) => [file.relativePath, file.status])).toEqual([
+      ['src/日本.ts', 'added'],
+    ]);
+    expect(diff.files[0].formattedDiff).toContain('+export const x = 1;');
+
+    repo.git('reset', '--quiet', 'src/日本.ts');
+  });
+
+  it('lists both paths of a renamed file', async () => {
+    repo.git('mv', 'src/a.ts', 'src/renamed.ts');
+
+    const diff = await extractGitDiff({ staged: true }, repo.dir);
+
+    expect(diff.changedPaths).toEqual(['src/a.ts', 'src/renamed.ts']);
+    expect(diff.files.map((file) => [file.previousPath, file.relativePath, file.status])).toEqual([
+      ['src/a.ts', 'src/renamed.ts', 'renamed'],
+    ]);
+
+    repo.git('reset', '--quiet', '--hard', 'HEAD');
+  });
+
+  it('fails when git cannot produce the patch instead of returning part of it', async () => {
+    await assert.rejects(
+      () => extractGitDiff({ diffRange: 'no-such-branch...HEAD' }, repo.dir),
+      /Failed to run git diff/
+    );
+  });
+
   it('fails when git cannot run the diff instead of reporting no change', async () => {
     await assert.rejects(
       () => listChangedPaths({ diffRange: 'no-such-branch...HEAD' }, repo.dir),
