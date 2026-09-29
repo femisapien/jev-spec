@@ -362,7 +362,7 @@ npx jev-spec --help
 npx jev-spec --version
 ```
 
-A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions, `codePaths` that match no file and a code context that exceeds the size budget. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked.
+A dry run prints, for every target, the specification sections and requirement IDs it found, the code files it matched, the rubrics it would ask and the estimated cost. It also warns about requirement IDs that no rubric mentions and `codePaths` that match no file. Code that does not fit in one request stops it with `2`, as it stops a real run. It exits with `0` when the setup is valid and `2` when it is not; it never exits with `1`, because nothing is checked.
 
 Unknown commands, unknown options, missing option values and unsupported `--format` values are rejected with exit code `2`.
 
