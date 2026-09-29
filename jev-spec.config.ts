@@ -20,6 +20,11 @@ import { defineConfig, noul } from 'jev-spec';
 // - A probe breaks the requirement plainly. A probe that only narrowed the choice check to
 //   assertions with allowedChoices, under a comment that still said the check runs first, scored
 //   0.88 on the broken copy; removing the check with its comment scored 0.42 (REQ-ANSWER-04).
+// - A condition on the fields the code reads works better than a description of the situation.
+//   "A file over the size limit or code cut at the character budget" scored 0.93 intact and 0.70
+//   broken; "a file in oversizedFiles or is truncated" scored 0.94 and 0.32 (REQ-RUN-02). Asking
+//   what the run does "for every file in oversizedFiles" instead cut the broken score to 0.10 but
+//   left intact code at 0.89.
 // - Asking whether something forbidden happens works well for some requirements and not at all
 //   for others, so try it on a probe instead of assuming it.
 //
@@ -100,21 +105,25 @@ export default defineConfig({
     },
 
     run: {
-      description: 'A run validates before it does anything else',
+      description: 'A run validates and reads every target before it sends anything',
       specPath: 'docs/specs/fail-closed.md',
       specFilter: { requirementPrefix: 'REQ-RUN-' },
-      codePaths: ['src/runner/engine.ts'],
+      codePaths: ['src/runner/engine.ts', 'src/context/code-extractor.ts'],
       rubrics: {
         'REQ-RUN-01': noul(
           'Does a run validate the configuration before it reads a spec, reads code or creates the client of the API?'
         ),
         'REQ-RUN-02': noul(
-          'Before the first target is evaluated, does a run throw an error when the code of any target it checks has a file over the size limit or was cut at the character budget?'
+          'When the code context of a target has a file in oversizedFiles or is truncated, does the run throw an error before the first target is evaluated?'
+        ),
+        'REQ-RUN-03': noul(
+          'When a file that matches the codePaths of a target cannot be read, does the run throw an error before the first target is evaluated, instead of leaving the file out?'
         ),
       },
       assertions: {
         'REQ-RUN-01': MET,
         'REQ-RUN-02': MET,
+        'REQ-RUN-03': MET,
       },
     },
 

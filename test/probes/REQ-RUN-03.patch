@@ -1,0 +1,17 @@
+diff --git a/src/context/code-extractor.ts b/src/context/code-extractor.ts
+--- a/src/context/code-extractor.ts
++++ b/src/context/code-extractor.ts
+@@ -135,11 +135,8 @@ async function readFiles(relativePaths: readonly string[], cwd: string): Promise
+       } else if (fileContext) {
+         read.files.push(fileContext);
+       }
+-    } catch (error: unknown) {
+-      read.unreadableFiles.push({
+-        file: relPath,
+-        code: (error as NodeJS.ErrnoException).code ?? String(error),
+-      });
++    } catch {
++      // Skip unreadable paths
+     }
+   }
+   return read;

@@ -117,7 +117,7 @@ No API key is needed for this step. Check `npx jev-spec --help` and take the fir
 npx jev-spec check --dry-run
 ```
 
-A dry run evaluates nothing. It prints, per target, the specification sections and requirement IDs it found, the code files it matched and the rubrics it would ask. Exit code `0` means the setup is valid and `2` means it is broken (invalid config, missing spec file, `specFilter` that matches nothing, a target whose code does not fit in one request); fix it. Read the report: every target must list the spec file and the code files you expect. Treat each warning as a finding. In particular `no rubric names REQ-…` must agree with the "not covered" rows of your coverage table; if it does not, one of the two is wrong.
+A dry run evaluates nothing. It prints, per target, the specification sections and requirement IDs it found, the code files it matched and the rubrics it would ask. Exit code `0` means the setup is valid and `2` means it is broken (invalid config, missing spec file, `specFilter` that matches nothing, a target whose code does not fit in one request, a code file that cannot be read); fix it. Read the report: every target must list the spec file and the code files you expect. Treat each warning as a finding. In particular `no rubric names REQ-…` must agree with the "not covered" rows of your coverage table; if it does not, one of the two is wrong.
 
 **`--help` does not list `--dry-run` (jev-spec 0.1.x):**
 
