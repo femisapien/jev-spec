@@ -1,6 +1,6 @@
 # Probe results
 
-Every requirement was checked twice: on the intact sources, and on a copy in which `test/probes/<ID>.patch` breaks that one requirement. A rubric belongs in the gate when it passes the first and fails the second.
+Every requirement was checked twice: on the intact sources, and on a copy in which `test/probes/<ID>.patch` breaks that one requirement. A rubric belongs in the gate when it passes the first and fails the second. The Intact and Broken columns give the probability of "yes": for a question that correct code answers "no", such as whether git is started through a shell, intact code scores low and broken code high.
 
 - Date: 2026-09-29
 - Model: jev-1.13.0

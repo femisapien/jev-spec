@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The recommended GitHub Actions workflow in the READMEs now runs the full check on pull requests from the same repository. It ran `--diff origin/main...HEAD` there, which skips every target whose code did not change, so a pull request that changed only a specification passed without anything being checked. If you copied that workflow, replace the diff run with a full run. The `jev-spec-init` skill already recommended a full run.
+- The READMEs, `jev-spec --help` and the `jev-spec-init` skill now say that the configuration is TypeScript or JavaScript and is executed by every run, `--dry-run` included. A dry run of a pull request therefore runs that pull request's code: run it in a job without secrets and with read-only permissions, and never under `pull_request_target`. The CI threat model also says which events receive secrets: a `pull_request_target` run and a pull request from a branch of the same repository do, a `pull_request` run from a fork does not.
+- Corrections in the READMEs: the security table mentions that git is started without a shell, separates the paths that are rejected (from the configuration and the command line) from glob matching, which does not follow symbolic links, and no longer refers to undefined "S-01 through S-05" labels. The runtime section names the Node.js and Bun versions CI tests, and the `TargetConfig` snippet declares its type parameter. The skills no longer say that only jev-spec 0.1.x leaves Markdown tables out: current versions do too.
+
 ## [0.4.0] - 2026-09-29
 
 A release about failing closed. A security assessment ([#25](https://github.com/nozomi-koborinai/jev-spec/issues/25)) reproduced several ways in which a check could pass without the model having judged the code: a changed file the diff run did not see, a file that was too large or could not be read, code cut at the character budget, an answer that was not a number, a client option read by truthiness. Each of them now fails the assertion or stops the run with exit code `2`. One change is breaking: read the upgrade notes.

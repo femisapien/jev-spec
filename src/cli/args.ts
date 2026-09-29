@@ -21,7 +21,8 @@ Options:
       --diff [range]     Check only the targets that a git diff touches (default: HEAD), e.g. origin/main...HEAD
   -f, --format <format>  Output format: terminal (default), markdown, json
   -o, --output <file>    Write the report to a file inside the project root
-      --dry-run          Validate config, spec parsing and file matching; evaluates nothing, needs no API key
+      --dry-run          Validate config, spec parsing and file matching; evaluates nothing, needs no API key,
+                         but still executes the config file
       --mock             Use the offline mock evaluator (no API key, results are not real)
   -h, --help             Show this help
   -v, --version          Show the jev-spec version
