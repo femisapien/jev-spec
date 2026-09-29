@@ -56,6 +56,32 @@ function diffSelection(options: GitDiffOptions): string[] {
   return [];
 }
 
+/** One file of a diff: its status letter and path, or old and new path for a rename or a copy. */
+interface ChangedFile {
+  readonly status: string;
+  readonly paths: readonly [string] | readonly [string, string];
+}
+
+/** Runs git with the limits every diff command shares, and fails on any error. */
+async function runGitDiff(args: readonly string[], cwd: string): Promise<string> {
+  try {
+    const { stdout } = await execFileAsync('git', ['diff', ...args], {
+      cwd,
+      maxBuffer: 10 * 1024 * 1024,
+      encoding: 'utf-8',
+      timeout: GIT_DIFF_TIMEOUT_MS,
+    });
+    return stdout;
+  } catch (error: unknown) {
+    throw new Error(`Failed to run git diff: ${(error as Error).message ?? String(error)}`);
+  }
+}
+
+/** The files of a diff in the order git lists them, with paths exactly as they are on disk. */
+async function listChangedFiles(selection: string[], cwd: string): Promise<ChangedFile[]> {
+  return parseChangedFiles(await runGitDiff(['--name-status', '-z', ...selection], cwd));
+}
+
 /**
  * Every path the diff touches, relative to the repository root: both paths of a renamed or copied
  * file, and names that git would quote in its display output, exactly as they are on disk.
@@ -64,156 +90,141 @@ export async function listChangedPaths(
   options: GitDiffOptions,
   cwd: string = process.cwd()
 ): Promise<string[]> {
-  let stdout: string;
-  try {
-    ({ stdout } = await execFileAsync(
-      'git',
-      ['diff', '--name-status', '-z', ...diffSelection(options)],
-      {
-        cwd,
-        maxBuffer: 10 * 1024 * 1024,
-        encoding: 'utf-8',
-        timeout: GIT_DIFF_TIMEOUT_MS,
-      }
-    ));
-  } catch (error: unknown) {
-    throw new Error(`Failed to run git diff: ${(error as Error).message ?? String(error)}`);
-  }
-  return parseNameStatus(stdout);
+  return (await listChangedFiles(diffSelection(options), cwd)).flatMap((file) => file.paths);
 }
 
 /**
  * Parses the output of `git diff --name-status -z`: a status, then one path, or two for a rename
  * or a copy, each field ended by NUL. Anything else throws, so that a change can never go unseen.
  */
-export function parseNameStatus(output: string): string[] {
+function parseChangedFiles(output: string): ChangedFile[] {
   const fields = output.split('\0');
   if (fields.pop() !== '') {
     throw new Error('Unexpected output from git diff --name-status: it does not end with NUL');
   }
 
-  const paths: string[] = [];
+  const files: ChangedFile[] = [];
   for (let i = 0; i < fields.length; ) {
     const status = fields[i++];
     const pathCount = /^[ADMTU]$/.test(status) ? 1 : /^[RC]\d{0,3}$/.test(status) ? 2 : 0;
     if (pathCount === 0) {
       throw new Error(`Unexpected status "${status}" from git diff --name-status`);
     }
-    for (let n = 0; n < pathCount; n++) {
-      const changedPath = fields[i++];
-      if (!changedPath) {
-        throw new Error(`Missing path after status "${status}" from git diff --name-status`);
-      }
-      paths.push(changedPath);
+    const paths = fields.slice(i, i + pathCount);
+    i += pathCount;
+    if (paths.length < pathCount || paths.some((changedPath) => !changedPath)) {
+      throw new Error(`Missing path after status "${status}" from git diff --name-status`);
     }
+    files.push({ status, paths: paths as [string] | [string, string] });
   }
-  return paths;
+  return files;
+}
+
+/** The paths of `git diff --name-status -z` output, both paths of a rename or a copy included. */
+export function parseNameStatus(output: string): string[] {
+  return parseChangedFiles(output).flatMap((file) => file.paths);
 }
 
 /**
- * Runs git diff and returns parsed file hunks.
+ * Runs git diff and returns parsed file hunks. The paths come from `git diff --name-status -z`,
+ * like those of a diff run, because the display headers of the patch quote unusual names and show
+ * only the new path of a rename.
  */
 export async function extractGitDiff(
   options: GitDiffOptions,
   cwd: string = process.cwd(),
   contextLines: number = DEFAULT_CONTEXT_LINES
 ): Promise<GitDiffResult> {
-  const args = ['diff', `--unified=${contextLines}`, ...diffSelection(options)];
+  const selection = diffSelection(options);
+  const [changedFiles, rawDiff] = await Promise.all([
+    listChangedFiles(selection, cwd),
+    runGitDiff([`--unified=${contextLines}`, ...selection], cwd),
+  ]);
 
-  let stdout = '';
-  try {
-    const result = await execFileAsync('git', args, {
-      cwd,
-      maxBuffer: 10 * 1024 * 1024,
-      encoding: 'utf-8',
-      timeout: GIT_DIFF_TIMEOUT_MS,
-    });
-    stdout = result.stdout ?? '';
-  } catch (error: unknown) {
-    const execError = error as { stdout?: string; stderr?: string; message?: string };
-    if (execError.stdout) {
-      stdout = execError.stdout;
-    } else {
-      throw new Error(`Failed to run git diff: ${execError.message ?? String(error)}`);
-    }
+  // git lists the files of both outputs in the same order. A difference in count means the two
+  // outputs cannot be paired, so no file is named after the wrong patch.
+  const chunks = splitDiffChunks(rawDiff);
+  if (chunks.length !== changedFiles.length) {
+    throw new Error(
+      `git diff listed ${changedFiles.length} changed files but printed ${chunks.length} patches`
+    );
   }
 
-  const files = parseUnifiedDiff(stdout);
   return {
-    files,
-    rawDiff: stdout,
-    changedPaths: files.map((file) => file.relativePath),
+    files: chunks.map((chunk, index) => {
+      const { paths } = changedFiles[index];
+      return {
+        ...parseDiffChunk(chunk, paths[paths.length - 1]),
+        ...(paths.length === 2 && { previousPath: paths[0] }),
+      };
+    }),
+    rawDiff,
+    changedPaths: changedFiles.flatMap((file) => file.paths),
   };
 }
 
+function splitDiffChunks(rawDiff: string): string[] {
+  return rawDiff.trim() ? rawDiff.split(/^diff --git /m).filter(Boolean) : [];
+}
+
 /**
- * Parses unified diff output into structured file entries.
+ * Parses unified diff output into structured file entries. The paths are read from the display
+ * headers, so a file whose name git quotes is left out; `extractGitDiff` does not rely on them.
  */
 export function parseUnifiedDiff(rawDiff: string): ParsedDiffFile[] {
-  if (!rawDiff.trim()) {
-    return [];
+  return splitDiffChunks(rawDiff).flatMap((chunk) => {
+    const pathMatch = (chunk.split('\n')[0] ?? '').match(/^a\/(.+?) b\/(.+)$/);
+    return pathMatch ? [parseDiffChunk(chunk, pathMatch[2])] : [];
+  });
+}
+
+function parseDiffChunk(chunk: string, relativePath: string): ParsedDiffFile {
+  const lines = chunk.split('\n');
+  let status: ParsedDiffFile['status'] = 'modified';
+  if (lines.some((line) => line.startsWith('new file mode'))) {
+    status = 'added';
+  } else if (lines.some((line) => line.startsWith('deleted file mode'))) {
+    status = 'deleted';
+  } else if (lines.some((line) => line.startsWith('rename from'))) {
+    status = 'renamed';
   }
 
-  const files: ParsedDiffFile[] = [];
-  const chunks = rawDiff.split(/^diff --git /m).filter(Boolean);
+  const hunks: ParsedDiffHunk[] = [];
+  let currentHunk: ParsedDiffHunk | null = null;
 
-  for (const chunk of chunks) {
-    const lines = chunk.split('\n');
-    const header = lines[0] ?? '';
-    const pathMatch = header.match(/^a\/(.+?) b\/(.+)$/);
-    if (!pathMatch) {
+  for (const line of lines) {
+    const hunkMatch = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunkMatch) {
+      if (currentHunk) {
+        hunks.push(currentHunk);
+      }
+      currentHunk = {
+        startLine: Number.parseInt(hunkMatch[2], 10),
+        lineCount: 0,
+        content: line,
+      };
       continue;
     }
 
-    const relativePath = pathMatch[2];
-    let status: ParsedDiffFile['status'] = 'modified';
-    if (lines.some((line) => line.startsWith('new file mode'))) {
-      status = 'added';
-    } else if (lines.some((line) => line.startsWith('deleted file mode'))) {
-      status = 'deleted';
-    } else if (lines.some((line) => line.startsWith('rename from'))) {
-      status = 'renamed';
+    if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
+      currentHunk = {
+        ...currentHunk,
+        lineCount: currentHunk.lineCount + 1,
+        content: `${currentHunk.content}\n${line}`,
+      };
     }
-
-    const hunks: ParsedDiffHunk[] = [];
-    let currentHunk: ParsedDiffHunk | null = null;
-
-    for (const line of lines) {
-      const hunkMatch = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
-      if (hunkMatch) {
-        if (currentHunk) {
-          hunks.push(currentHunk);
-        }
-        currentHunk = {
-          startLine: Number.parseInt(hunkMatch[2], 10),
-          lineCount: 0,
-          content: line,
-        };
-        continue;
-      }
-
-      if (currentHunk && (line.startsWith('+') || line.startsWith('-') || line.startsWith(' '))) {
-        currentHunk = {
-          ...currentHunk,
-          lineCount: currentHunk.lineCount + 1,
-          content: `${currentHunk.content}\n${line}`,
-        };
-      }
-    }
-
-    if (currentHunk) {
-      hunks.push(currentHunk);
-    }
-
-    files.push({
-      relativePath,
-      status,
-      hunks,
-      formattedDiff: `diff --git ${chunk}`.trimEnd(),
-    });
   }
 
-  return files;
+  if (currentHunk) {
+    hunks.push(currentHunk);
+  }
+
+  return {
+    relativePath,
+    status,
+    hunks,
+    formattedDiff: `diff --git ${chunk}`.trimEnd(),
+  };
 }
 
 /**
